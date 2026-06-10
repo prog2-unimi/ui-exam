@@ -51,6 +51,29 @@ def source_tree(email: str) -> list:
     return _walk(root, root, trivial_paths)
 
 
+def source_all_symbols(email: str) -> list[dict]:
+    root = source_root(email)
+    if not root.exists():
+        return []
+    trivial_paths = _trivial_rel_paths(root)
+    result = []
+    for f in sorted(root.rglob('*.java')):
+        if f.stem == 'package-info':
+            continue
+        rel = str(f.relative_to(root))
+        if rel in trivial_paths:
+            continue
+        if any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1]):
+            continue
+        try:
+            text = f.read_text(errors='replace')
+            for sym in parsing.symbols(text):
+                result.append({'file': rel, **sym})
+        except Exception:
+            pass
+    return result
+
+
 def _walk(path: Path, root: Path, trivial_paths: set[str], parent_trivial: bool = False) -> list:
     items = []
     try:
@@ -66,7 +89,9 @@ def _walk(path: Path, root: Path, trivial_paths: set[str], parent_trivial: bool 
                 items.append({'type': 'dir', 'name': entry.name, 'path': rel,
                               'children': children, 'trivial': trivial})
         elif entry.suffix == '.java':
-            trivial = parent_trivial or entry.stem == 'package-info' or rel in trivial_paths
+            if entry.stem == 'package-info':
+                continue
+            trivial = parent_trivial or rel in trivial_paths
             items.append({'type': 'file', 'name': entry.name, 'path': rel, 'trivial': trivial})
     return items
 

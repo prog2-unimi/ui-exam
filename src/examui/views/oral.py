@@ -49,6 +49,11 @@ def source_deps(email):
     return jsonify(oral.source_deps(email))
 
 
+@bp.get('/<email>/source/symbols')
+def source_symbols(email):
+    return jsonify(oral.source_all_symbols(email))
+
+
 @bp.get('/<email>/source/file')
 def source_file(email):
     relpath = request.args.get('path', '')

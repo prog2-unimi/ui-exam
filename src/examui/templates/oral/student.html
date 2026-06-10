@@ -161,7 +161,9 @@ textarea.addEventListener('input', () => {
 textarea.addEventListener('blur', () => { clearTimeout(saveTimer); saveNote(); });
 
 // ── Source navigator ─────────────────────────────────────────────────────────
-let allSymbols = [];   // [{name, kind, file, line}, …] for global search
+const SYM_SEARCH_MIN_LEN = 3;   // minimum query length to trigger global search
+let allSymbols  = [];            // [{file, kind, name, line, anchor}, …]
+let _activeFile = null;          // relpath of currently displayed file
 
 function renderTree(nodes, depth=0) {
   let html = `<ul class="list-unstyled mb-0${depth ? ' ms-3' : ''}">`;
@@ -209,6 +211,10 @@ function applyTree() {
   el.querySelectorAll('.source-file').forEach(div => {
     div.addEventListener('click', () => loadSourceFile(div.dataset.path, div));
   });
+  if (_activeFile) {
+    const active = el.querySelector(`.source-file[data-path="${_activeFile}"]`);
+    if (active) active.classList.add('active');
+  }
 }
 
 async function loadSourceTree() {
@@ -218,7 +224,75 @@ async function loadSourceTree() {
   document.getElementById('tree-filter').addEventListener('change', applyTree);
 }
 
+async function loadAllSymbols() {
+  const resp = await fetch('{{ url_for("oral.source_symbols", email=email) }}');
+  allSymbols = await resp.json();
+}
+
+function renderSymbolSearch(query) {
+  const el      = document.getElementById('source-tree');
+  const q       = query.toLowerCase();
+  const matches = allSymbols.filter(s => s.name.toLowerCase().includes(q));
+
+  if (!matches.length) {
+    el.innerHTML = '<div class="px-2 py-1 text-muted small">No symbols found.</div>';
+    return;
+  }
+
+  const byFile = new Map();
+  for (const sym of matches) {
+    if (!byFile.has(sym.file)) byFile.set(sym.file, []);
+    byFile.get(sym.file).push(sym);
+  }
+
+  let html = '<ul class="list-unstyled mb-0">';
+  for (const [file, syms] of byFile) {
+    const basename = file.split('/').pop();
+    html += `<li>
+      <div class="source-file d-flex align-items-center gap-1 px-1 rounded py-0"
+           data-path="${file}" role="button" title="${file}" style="font-weight:500;">
+        <i class="bi bi-filetype-java text-primary" style="font-size:.75rem;"></i>
+        <span>${basename}</span>
+      </div>
+      <ul class="list-unstyled mb-0 ms-3">`;
+    for (const sym of syms) {
+      html += `<li>
+        <div class="source-file d-flex align-items-center gap-1 px-1 rounded py-0"
+             data-path="${file}" data-line="${sym.line}" role="button">
+          <span class="text-muted" style="font-size:.7rem; min-width:3.2rem;">[${sym.kind}]</span>
+          <span>${sym.name}</span>
+        </div>
+      </li>`;
+    }
+    html += `</ul></li>`;
+  }
+  html += '</ul>';
+  el.innerHTML = html;
+
+  el.querySelectorAll('.source-file[data-line]').forEach(div => {
+    div.addEventListener('click', () => openSymbol(div.dataset.path, parseInt(div.dataset.line)));
+  });
+  el.querySelectorAll('.source-file:not([data-line])').forEach(div => {
+    div.addEventListener('click', () => openSymbol(div.dataset.path, null));
+  });
+}
+
+async function openSymbol(relpath, line) {
+  bootstrap.Tab.getOrCreateInstance(
+    document.querySelector('[data-bs-target="#tab-source"]')
+  ).show();
+  await loadSourceFile(relpath, null);
+  if (line !== null) scrollToLine(line);
+}
+
+document.getElementById('sym-search').addEventListener('input', function() {
+  const q = this.value.trim();
+  if (q.length >= SYM_SEARCH_MIN_LEN) renderSymbolSearch(q);
+  else applyTree();
+});
+
 async function loadSourceFile(relpath, clickedEl) {
+  _activeFile = relpath;
   document.querySelectorAll('.source-file').forEach(d => d.classList.remove('active'));
   if (clickedEl) clickedEl.classList.add('active');
 
@@ -301,10 +375,11 @@ function applyFontSize() {
 }
 fsEl.addEventListener('change', () => { localStorage.setItem(fsKey, fsEl.value); applyFontSize(); });
 
-// Load tree the first time the Source tab is shown
+// Load tree + symbol index the first time the Source tab is shown
 document.querySelector('[data-bs-target="#tab-source"]')
   .addEventListener('shown.bs.tab', function onFirst() {
     loadSourceTree();
+    loadAllSymbols();
     this.removeEventListener('shown.bs.tab', onFirst);
   });
 

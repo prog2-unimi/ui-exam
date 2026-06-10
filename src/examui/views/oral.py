@@ -14,7 +14,7 @@ def student(email):
     match   = df[df['email'] == email]
     row     = match.iloc[0].to_dict() if not match.empty else {}
     student = all_students().get(email)
-    return render_template('oral/student.html',
+    return render_template('oral.html',
                            email=email,
                            name=student.name if student else '',
                            matricola=student.matricola if student else '',

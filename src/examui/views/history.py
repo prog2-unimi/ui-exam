@@ -36,7 +36,7 @@ def list_students():
             'has_source':  oral.has_source(s.email),
             'dates':       dates,
         })
-    return render_template('history/list.html',
+    return render_template('list.html',
                            students_json=json.dumps(summary),
                            exam_dates=sorted(all_dates, reverse=True),
                            exam_date=config.EXAM_DATE)
@@ -48,6 +48,6 @@ def detail(email):
     student  = students.get(email)
     if student is None:
         return 'Student not found', 404
-    return render_template('history/detail.html',
+    return render_template('detail.html',
                            student=student,
                            exam_date=config.EXAM_DATE)

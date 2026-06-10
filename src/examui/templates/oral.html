@@ -4,7 +4,7 @@
 
 {% block head %}
 <link href="{{ url_for('oral.pygments_css') }}" rel="stylesheet">
-<link href="{{ url_for('static', filename='oral_student.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='oral.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -129,5 +129,5 @@ const CFG = {
   },
 };
 </script>
-<script src="{{ url_for('static', filename='oral_student.js') }}"></script>
+<script src="{{ url_for('static', filename='oral.js') }}"></script>
 {% endblock %}

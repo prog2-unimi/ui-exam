@@ -45,10 +45,13 @@ def has_source(email: str) -> bool:
 
 def source_tree(email: str) -> list:
     root = source_root(email)
-    return _walk(root, root) if root.exists() else []
+    if not root.exists():
+        return []
+    trivial_paths = _trivial_rel_paths(root)
+    return _walk(root, root, trivial_paths)
 
 
-def _walk(path: Path, root: Path) -> list:
+def _walk(path: Path, root: Path, trivial_paths: set[str], parent_trivial: bool = False) -> list:
     items = []
     try:
         entries = sorted(path.iterdir(), key=lambda p: (p.is_file(), p.name.lower()))
@@ -57,11 +60,14 @@ def _walk(path: Path, root: Path) -> list:
     for entry in entries:
         rel = str(entry.relative_to(root))
         if entry.is_dir():
-            children = _walk(entry, root)
+            trivial = parent_trivial or bool(_TRIVIAL_DIR_RE.match(entry.name))
+            children = _walk(entry, root, trivial_paths, trivial)
             if children:
-                items.append({'type': 'dir', 'name': entry.name, 'path': rel, 'children': children})
+                items.append({'type': 'dir', 'name': entry.name, 'path': rel,
+                              'children': children, 'trivial': trivial})
         elif entry.suffix == '.java':
-            items.append({'type': 'file', 'name': entry.name, 'path': rel})
+            trivial = parent_trivial or entry.stem == 'package-info' or rel in trivial_paths
+            items.append({'type': 'file', 'name': entry.name, 'path': rel, 'trivial': trivial})
     return items
 
 
@@ -100,8 +106,55 @@ def _split_html_lines(html: str) -> list[str]:
     return result
 
 
-_TRIVIAL_DEP_RE  = re.compile(r'(?:Exception|Error|Client)$')
-_TRIVIAL_DIR_DEP = re.compile(r'^clients?$', re.IGNORECASE)
+_TRIVIAL_STEM_RE     = re.compile(r'(?:Exception|Error|Client)$')
+_TRIVIAL_INHERITS_RE = re.compile(r'(?:Exception|Error|Throwable)$')
+_TRIVIAL_DIR_RE      = re.compile(r'^clients?$', re.IGNORECASE)
+
+
+def _is_trivial(stem: str, uses: dict[str, set[str]]) -> bool:
+    if _TRIVIAL_STEM_RE.search(stem):
+        return True
+    return any(
+        _TRIVIAL_INHERITS_RE.search(fqn.rsplit('.', 1)[-1])
+        for fqn in uses.get('inherits', set())
+    )
+
+
+def _close_trivial(parsed: dict[str, dict]) -> None:
+    """Propagate trivial flag transitively: if a superclass is trivial, the subclass is too."""
+    changed = True
+    while changed:
+        changed = False
+        for info in parsed.values():
+            if not info['trivial']:
+                for inh in info['uses'].get('inherits', set()):
+                    if parsed.get(inh, {}).get('trivial', False):
+                        info['trivial'] = True
+                        changed = True
+                        break
+
+
+def _trivial_rel_paths(root: Path) -> set[str]:
+    """Return root-relative paths of all trivial .java files (by name or inheritance closure)."""
+    parsed: dict[str, dict] = {}
+    for f in root.rglob('*.java'):
+        if f.stem == 'package-info':
+            continue
+        if any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1]):
+            continue
+        try:
+            text = f.read_text(errors='replace')
+            pkg, simple, uses, _ = parsing.class_uses(text)
+            if not simple:
+                continue
+            fqn = f'{pkg}.{simple}' if pkg else simple
+            parsed[fqn] = {'rel': str(f.relative_to(root)), 'uses': uses,
+                           'trivial': _is_trivial(simple, uses)}
+        except Exception:
+            pass
+    _close_trivial(parsed)
+    return {info['rel'] for info in parsed.values() if info['trivial']}
+
 
 _NID_RE = re.compile(r'[^a-zA-Z0-9_]')
 
@@ -228,24 +281,29 @@ def source_deps(email: str) -> dict:
     java_files = [
         f for f in sorted(root.rglob('*.java'))
         if f.stem != 'package-info'
-        and not _TRIVIAL_DEP_RE.search(f.stem)
-        and not any(_TRIVIAL_DIR_DEP.match(p) for p in f.relative_to(root).parts[:-1])
+        and not any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1])
     ]
 
-    class_info: dict[str, dict] = {}
+    # Pass 1: parse all files
+    all_parsed: dict[str, dict] = {}
     for f in java_files:
         text = f.read_text(errors='replace')
         pkg, simple, uses, sym_count = parsing.class_uses(text)
         if not simple:
             continue
         fqn = f'{pkg}.{simple}' if pkg else simple
-        class_info[fqn] = {
+        all_parsed[fqn] = {
             'name': simple,
             'path': str(f.relative_to(root)),
             'uses': uses,
             'sym_count': sym_count,
+            'trivial': _is_trivial(simple, uses),
         }
 
+    # Pass 2: propagate trivial flag through inheritance chains
+    _close_trivial(all_parsed)
+
+    class_info = {fqn: info for fqn, info in all_parsed.items() if not info['trivial']}
     known = set(class_info)
 
     # Build adjacency list (edges to known classes only, no self-loops)
@@ -311,11 +369,14 @@ def source_deps(email: str) -> dict:
                     sg.node(fqn, label=info['name'], id=nid, tooltip=fqn)
                     paths[nid] = info['path']
 
+    node_to_scc = {fqn: i for i, scc in enumerate(sccs) for fqn in scc}
+
     # Edges from reduced graph, reversed so foundations become sources (left) in rankdir=LR
+    # Intra-SCC edges are omitted from the drawing (the cluster boundary implies the cycle).
     drawn: set[tuple[str, str]] = set()
     for src_fqn in known:
         for tgt in adj_reduced[src_fqn]:
-            if (src_fqn, tgt) not in drawn:
+            if (src_fqn, tgt) not in drawn and node_to_scc[src_fqn] != node_to_scc[tgt]:
                 dot.edge(tgt, src_fqn)
                 drawn.add((src_fqn, tgt))
 

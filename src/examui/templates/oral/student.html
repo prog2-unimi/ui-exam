@@ -73,7 +73,9 @@
 
         {# tree panel #}
         <div class="border-end d-flex flex-column py-0 px-0" style="width:220px; min-width:220px; font-size:.82rem;">
-          <div class="px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0">
+          <div class="px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0 d-flex flex-column gap-1">
+            <input id="sym-search" type="search" placeholder="Search symbols…"
+                   class="form-control form-control-sm" style="font-size:.78rem;">
             <select id="tree-filter" class="form-select form-select-sm" style="font-size:.78rem;">
               <option value="relevant" selected>Relevant</option>
               <option value="all">All</option>
@@ -89,12 +91,7 @@
           {# toolbar #}
           <div class="d-flex align-items-center gap-2 px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0">
             <span id="src-filename" class="text-muted small font-monospace flex-grow-1">No file selected</span>
-            <input id="sym-search" type="search" placeholder="Search symbols…"
-                   class="form-control form-control-sm" style="width:180px; display:none;">
             <select id="sym-select" class="form-select form-select-sm" style="width:auto; display:none;"></select>
-            <button id="src-javadoc-btn" class="btn btn-sm btn-outline-secondary" style="display:none;">
-              <i class="bi bi-book"></i> Javadoc
-            </button>
             <select id="src-fontsize" class="form-select form-select-sm" style="width:auto;" title="Font size">
               <option value="11">11px</option>
               <option value="12">12px</option>
@@ -190,19 +187,13 @@ function renderTree(nodes, depth=0) {
   return html + '</ul>';
 }
 
-const _TRIVIAL_FILE_RE = /(?:Exception|Error|Client)\.java$|^package-info\.java$/i;
-const _TRIVIAL_DIR_RE  = /^clients?$/i;
-
-function _isTrivialFile(name) { return _TRIVIAL_FILE_RE.test(name); }
-function _isTrivialDir(name)  { return _TRIVIAL_DIR_RE.test(name); }
-
 function filterNodes(nodes, mode) {
   if (mode === 'all') return nodes;
   const wantTrivial = mode === 'trivial';
   return nodes.flatMap(n => {
-    if (n.type === 'file')       return _isTrivialFile(n.name) === wantTrivial ? [n] : [];
-    if (_isTrivialDir(n.name))   return wantTrivial ? [n] : [];
-    const children = filterNodes(n.children, mode);
+    if (n.type === 'file') return n.trivial === wantTrivial ? [n] : [];
+    if (n.trivial)         return wantTrivial ? [n] : [];
+    const children = filterNodes(n.children ?? [], mode);
     return children.length ? [{ ...n, children }] : [];
   });
 }
@@ -266,32 +257,15 @@ async function loadSourceFile(relpath, clickedEl) {
   });
 
   // ── Symbols dropdown ─────────────────────────────────────────────────────
-  const sel    = document.getElementById('sym-select');
-  const search = document.getElementById('sym-search');
+  const sel = document.getElementById('sym-select');
   if (data.symbols.length) {
     sel.style.display = '';
     sel.innerHTML = data.symbols
       .map(s => `<option value="${s.line}">[${s.kind}] ${s.name}</option>`)
       .join('');
     sel.onchange = () => scrollToLine(parseInt(sel.value));
-    search.style.display = '';
-    search.value = '';
-    search.oninput = () => {
-      const q = search.value.toLowerCase();
-      Array.from(sel.options).forEach(o => { o.hidden = q && !o.text.toLowerCase().includes(q); });
-    };
   } else {
     sel.style.display = 'none';
-    search.style.display = 'none';
-  }
-
-  // ── File-level javadoc button ────────────────────────────────────────────
-  const btn = document.getElementById('src-javadoc-btn');
-  if (jdBase) {
-    btn.style.display = '';
-    btn.onclick = () => openJavadoc(jdBase);
-  } else {
-    btn.style.display = 'none';
   }
 }
 

@@ -4,6 +4,7 @@
 from flask import Blueprint, render_template, request, jsonify, send_from_directory
 from examui.models import oral
 from examui.models.history import all_students
+from examui import config
 
 bp = Blueprint('oral', __name__, url_prefix='/oral')
 
@@ -21,7 +22,8 @@ def student(email):
                            row=row,
                            note=oral.read_note(email),
                            has_javadoc=oral.has_javadoc(email),
-                           has_source=oral.has_source(email))
+                           has_source=oral.has_source(email),
+                           slot_minutes=config.SLOT_MINUTES)
 
 
 @bp.post('/<email>/note')

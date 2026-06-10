@@ -1,3 +1,91 @@
+// ── Slot timer ───────────────────────────────────────────────────────────────
+const TIMER_KEY = 'examTimer';
+let _timerInterval = null;
+
+function _fmtMs(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function _tickTimer() {
+  const stored = JSON.parse(sessionStorage.getItem(TIMER_KEY) || 'null');
+  if (!stored || stored.email !== CFG.email) return;
+
+  const elapsed = Date.now() - stored.startMs;
+  const pct     = Math.min(elapsed / stored.slotMs * 100, 100);
+  const remain  = Math.max(0, stored.slotMs - elapsed);
+
+  document.getElementById('timer-display').textContent =
+    `${_fmtMs(elapsed)} / ${_fmtMs(stored.slotMs)}`;
+
+  const bar = document.getElementById('timer-bar');
+  bar.style.width = pct + '%';
+  if (pct >= 90) {
+    bar.className = 'progress-bar bg-danger progress-bar-striped' + (pct >= 95 ? ' progress-bar-animated' : '');
+  } else if (pct >= 80) {
+    bar.className = 'progress-bar bg-warning';
+  } else {
+    bar.className = 'progress-bar bg-success';
+  }
+
+  const badge = document.getElementById('timer-badge');
+  const remMin = Math.ceil(remain / 60000);
+  if (pct >= 95) {
+    badge.textContent = `⚠ ${remMin} min left`;
+    badge.className = 'badge bg-danger';
+  } else if (pct >= 90) {
+    badge.textContent = `⚠ ${remMin} min left`;
+    badge.className = 'badge bg-danger';
+  } else if (pct >= 80) {
+    badge.textContent = `⚠ ${remMin} min left`;
+    badge.className = 'badge bg-warning text-dark';
+  } else {
+    badge.className = 'badge d-none';
+  }
+}
+
+function _startTimerUI() {
+  document.getElementById('timer-btn').textContent = 'Reset';
+  _timerInterval = setInterval(_tickTimer, 500);
+  _tickTimer();
+}
+
+function startTimer() {
+  const slotMin = parseInt(document.getElementById('slot-input').value) || CFG.slotMinutes;
+  sessionStorage.setItem(TIMER_KEY, JSON.stringify({
+    email:   CFG.email,
+    startMs: Date.now(),
+    slotMs:  slotMin * 60000,
+  }));
+  _startTimerUI();
+}
+
+function resetTimer() {
+  clearInterval(_timerInterval);
+  _timerInterval = null;
+  sessionStorage.removeItem(TIMER_KEY);
+  const slotMin = parseInt(document.getElementById('slot-input').value) || CFG.slotMinutes;
+  document.getElementById('timer-btn').textContent = 'Start';
+  document.getElementById('timer-display').textContent = `0:00 / ${slotMin}:00`;
+  document.getElementById('timer-bar').className = 'progress-bar bg-success';
+  document.getElementById('timer-bar').style.width = '0%';
+  document.getElementById('timer-badge').className = 'badge d-none';
+}
+
+document.getElementById('timer-btn').addEventListener('click', () => {
+  const stored = JSON.parse(sessionStorage.getItem(TIMER_KEY) || 'null');
+  if (stored && stored.email === CFG.email) resetTimer();
+  else startTimer();
+});
+
+// Restore timer if one is already running for this student
+(function loadTimer() {
+  const stored = JSON.parse(sessionStorage.getItem(TIMER_KEY) || 'null');
+  if (!stored || stored.email !== CFG.email) return;
+  document.getElementById('slot-input').value = Math.round(stored.slotMs / 60000);
+  _startTimerUI();
+})();
+
 // ── Note save ────────────────────────────────────────────────────────────────
 const textarea = document.getElementById('note-editor');
 const status   = document.getElementById('note-status');

@@ -10,13 +10,30 @@
 {% block content %}
 <div class="d-flex flex-column px-3 pt-3" style="height: 100vh;">
 
-  <div class="d-flex align-items-baseline gap-3 mb-3">
+  <div class="d-flex align-items-baseline gap-3 mb-2">
     <a href="{{ url_for('history.detail', email=email) }}" class="text-muted me-1">
       <i class="bi bi-arrow-left"></i>
     </a>
     <h5 class="mb-0">{{ name or email }}</h5>
     <span class="text-muted">{{ email }}</span>
     <span class="text-muted small">{{ matricola }}</span>
+  </div>
+
+  {# ── Timer strip ─────────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <button id="timer-btn" class="btn btn-sm btn-outline-secondary">Start</button>
+    <span id="timer-display" class="font-monospace small text-muted" style="min-width:7rem;">0:00 / {{ slot_minutes }}:00</span>
+    <div class="flex-grow-1">
+      <div class="progress" style="height:6px;">
+        <div id="timer-bar" class="progress-bar bg-success" style="width:0%;"></div>
+      </div>
+    </div>
+    <span id="timer-badge" class="badge d-none"></span>
+    <label class="d-flex align-items-center gap-1 small text-muted mb-0">
+      <input id="slot-input" type="number" min="5" max="120" value="{{ slot_minutes }}"
+             class="form-control form-control-sm text-center" style="width:3.5rem;">
+      min
+    </label>
   </div>
 
   <ul class="nav nav-tabs" role="tablist">
@@ -119,6 +136,8 @@
 {% block scripts %}
 <script>
 const CFG = {
+  email:       {{ email | tojson }},
+  slotMinutes: {{ slot_minutes }},
   urls: {
     saveNote:      {{ url_for('oral.save_note',      email=email) | tojson }},
     sourceTree:    {{ url_for('oral.source_tree',    email=email) | tojson }},

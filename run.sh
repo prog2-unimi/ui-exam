@@ -3,9 +3,8 @@
 # Copyright (C) 2026  Massimo Santini
 set -e
 
-# Environment variables are expected from .envrc (direnv) or the calling shell.
+# Required: HISTORY_DIR, EVALS_DIR, STUDENT_BASE
 
-echo "EXAM_DATE:    $EXAM_DATE"
 echo "HISTORY_DIR:  $HISTORY_DIR"
 echo "EVALS_DIR:    $EVALS_DIR"
 echo "STUDENT_BASE: $STUDENT_BASE"

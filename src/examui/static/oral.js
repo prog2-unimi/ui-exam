@@ -72,19 +72,21 @@ function resetTimer() {
   document.getElementById('timer-badge').className = 'badge d-none';
 }
 
-document.getElementById('timer-btn').addEventListener('click', () => {
-  const stored = JSON.parse(sessionStorage.getItem(TIMER_KEY) || 'null');
-  if (stored && stored.email === CFG.email) resetTimer();
-  else startTimer();
-});
+if (document.getElementById('timer-btn')) {
+  document.getElementById('timer-btn').addEventListener('click', () => {
+    const stored = JSON.parse(sessionStorage.getItem(TIMER_KEY) || 'null');
+    if (stored && stored.email === CFG.email) resetTimer();
+    else startTimer();
+  });
 
-// Restore timer if one is already running for this student
-(function loadTimer() {
-  const stored = JSON.parse(sessionStorage.getItem(TIMER_KEY) || 'null');
-  if (!stored || stored.email !== CFG.email) return;
-  document.getElementById('slot-input').value = Math.round(stored.slotMs / 60000);
-  _startTimerUI();
-})();
+  // Restore timer if one is already running for this student
+  (function loadTimer() {
+    const stored = JSON.parse(sessionStorage.getItem(TIMER_KEY) || 'null');
+    if (!stored || stored.email !== CFG.email) return;
+    document.getElementById('slot-input').value = Math.round(stored.slotMs / 60000);
+    _startTimerUI();
+  })();
+}
 
 // ── Note save ────────────────────────────────────────────────────────────────
 const textarea = document.getElementById('note-editor');

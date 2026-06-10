@@ -3,7 +3,7 @@
 
 import logging
 
-from flask import Flask, redirect, url_for
+from flask import Flask
 
 _log = logging.getLogger(__name__)
 
@@ -27,16 +27,12 @@ def create_app():
     app.register_blueprint(oral_bp)
     app.register_blueprint(history_bp)
 
-    @app.get('/')
-    def index():
-        return redirect(url_for('history.list_students'))
-
     from pathlib import Path
-    from examui.models.history import all_students
+    from examui.models.history import all_students, LiveCurrentExamEvent
     from examui.models import oral
     Path(app.static_folder, 'pygments.css').write_text(oral.pygments_css())
-    students = all_students()
-    with_source = sorted(e for e in students if oral.has_source(e))
+    students    = all_students()
+    with_source = sorted(e for e, s in students.items() if isinstance(s.current, LiveCurrentExamEvent))
     _log.info('[warmup] %d students with source', len(with_source))
     for email in with_source:
         oral.warmup(email)

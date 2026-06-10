@@ -9,9 +9,9 @@
 {% block content %}
 <div class="container-fluid py-3">
 
-  <div class="d-flex align-items-center gap-3 mb-3">
-    <h5 class="mb-0"><i class="bi bi-people"></i> Students</h5>
-    <select id="date-filter" class="form-select form-select-sm w-auto">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <h5 class="mb-0 flex-shrink-0"><i class="bi bi-people"></i> Students</h5>
+    <select id="date-filter" class="form-select form-select-sm w-auto flex-shrink-0">
       <option value="">All exam dates</option>
       {% for date in exam_dates %}
       <option value="{{ date }}" {% if date == exam_date %}selected{% endif %}>
@@ -19,14 +19,22 @@
       </option>
       {% endfor %}
     </select>
-    <div class="form-check mb-0">
+    <div class="form-check mb-0 flex-shrink-0">
       <input class="form-check-input" type="checkbox" id="refused-filter">
       <label class="form-check-label" for="refused-filter">Has ~</label>
     </div>
-    <div class="form-check mb-0">
+    <div class="form-check mb-0 flex-shrink-0">
       <input class="form-check-input" type="checkbox" id="exam-source-filter">
-      <label class="form-check-label" for="exam-source-filter">Current exam &amp; source</label>
+      <label class="form-check-label" for="exam-source-filter">Turned in</label>
     </div>
+    <select id="page-len" class="form-select form-select-sm w-auto flex-shrink-0">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="-1">All</option>
+    </select>
+    <input id="dt-search" type="search" class="form-control form-control-sm flex-grow-1"
+           placeholder="Search…" style="min-width:0;">
   </div>
 
   <table id="students-table" class="table table-sm table-hover table-striped">
@@ -39,6 +47,7 @@
         <th>First</th>
         <th>Last</th>
         <th>First eval</th>
+        <th>Mark</th>
       </tr>
     </thead>
   </table>

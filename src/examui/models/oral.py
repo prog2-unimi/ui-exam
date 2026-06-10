@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 import re
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 _log = logging.getLogger(__name__)
@@ -19,17 +19,8 @@ from pygments.lexers import JavaLexer
 from examui import config
 from examui import parsing
 
-# ── marks ─────────────────────────────────────────────────────────────────────
-
-def load_marks() -> pd.DataFrame:
-    return pd.read_csv(config.EVAL_DIR / 'marks.tsv', sep='\t', na_filter=False)
-
 
 # ── javadoc ───────────────────────────────────────────────────────────────────
-
-def has_javadoc(email: str) -> bool:
-    return javadoc_root(email).exists()
-
 
 def javadoc_root(email: str) -> Path:
     return config.STUDENT_BASE / email / 'javadoc'
@@ -43,11 +34,7 @@ def source_root(email: str) -> Path:
     return java if java.exists() else base
 
 
-def has_source(email: str) -> bool:
-    return source_root(email).exists()
-
-
-@lru_cache(maxsize=None)
+@cache
 def source_tree(email: str) -> list:
     root = source_root(email)
     if not root.exists():
@@ -56,7 +43,7 @@ def source_tree(email: str) -> list:
     return _walk(root, root, trivial_paths)
 
 
-@lru_cache(maxsize=None)
+@cache
 def source_all_symbols(email: str) -> list[dict]:
     root = source_root(email)
     if not root.exists():
@@ -165,7 +152,7 @@ def _close_trivial(parsed: dict[str, dict]) -> None:
                         break
 
 
-@lru_cache(maxsize=None)
+@cache
 def _trivial_rel_paths(root: Path) -> set[str]:
     """Return root-relative paths of all trivial .java files (by name or inheritance closure)."""
     parsed: dict[str, dict] = {}
@@ -205,7 +192,7 @@ def _javadoc_ids(email: str, relpath: str) -> frozenset[str]:
     return frozenset(re.findall(r'\bid="([^"]*)"', jd_path.read_text(errors='replace')))
 
 
-@lru_cache(maxsize=None)
+@cache
 def source_file(email: str, relpath: str) -> dict | None:
     root = source_root(email).resolve()
     path = (root / relpath).resolve()
@@ -306,7 +293,7 @@ def _tarjan_sccs(nodes: list[str], adj: dict[str, list[str]]) -> list[list[str]]
     return sccs
 
 
-@lru_cache(maxsize=None)
+@cache
 def source_deps(email: str) -> dict:
     root = source_root(email)
     if not root.exists():
@@ -433,24 +420,3 @@ def javadoc_path_for_source(relpath: str) -> str | None:
     if relpath.endswith('.java'):
         return relpath[:-5] + '.html'
     return None
-
-
-# ── notes ─────────────────────────────────────────────────────────────────────
-
-def note_path(email: str) -> Path:
-    return config.EVAL_DIR / 'notes' / f'{email}.md'
-
-
-def read_note(email: str) -> str:
-    p = note_path(email)
-    return p.read_text() if p.exists() else ''
-
-
-def save_note(email: str, text: str) -> None:
-    p = note_path(email)
-    cleaned = '\n'.join(l for l in text.splitlines() if not l.startswith('#')).strip()
-    if cleaned:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(cleaned)
-    elif p.exists():
-        p.unlink()

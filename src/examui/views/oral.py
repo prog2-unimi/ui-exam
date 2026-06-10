@@ -2,38 +2,36 @@
 # Copyright (C) 2026  Massimo Santini
 
 from flask import Blueprint, render_template, request, jsonify, send_from_directory
+from examui import config
 from examui.models import oral
 from examui.models.history import all_students
-from examui import config
 
-bp = Blueprint('oral', __name__, url_prefix='/oral')
+bp = Blueprint('oral', __name__, url_prefix='')
 
 
 @bp.get('/<email>')
 def student(email):
-    df      = oral.load_marks()
-    match   = df[df['email'] == email]
-    row     = match.iloc[0].to_dict() if not match.empty else {}
-    student = all_students().get(email)
+    s = all_students().get(email)
     return render_template('oral.html',
                            email=email,
-                           name=student.name if student else '',
-                           matricola=student.matricola if student else '',
-                           row=row,
-                           note=oral.read_note(email),
-                           has_javadoc=oral.has_javadoc(email),
-                           has_source=oral.has_source(email),
+                           name=s.name if s else '',
+                           matricola=s.matricola if s else '',
+                           events=s.events if s else [],
+                           current=s.current if s else None,
                            slot_minutes=config.SLOT_MINUTES)
 
 
-@bp.post('/<email>/note')
+@bp.post('/api/<email>/note')
 def save_note(email):
-    oral.save_note(email, request.form['note'])
+    s = all_students().get(email)
+    if not s or not s.current:
+        return jsonify(ok=False, error='not enrolled'), 404
+    s.current.note = request.form['note']
     return jsonify(ok=True)
 
 
-@bp.get('/<email>/javadoc/')
-@bp.get('/<email>/javadoc/<path:filepath>')
+@bp.get('/api/<email>/javadoc/')
+@bp.get('/api/<email>/javadoc/<path:filepath>')
 def javadoc(email, filepath='index.html'):
     root = oral.javadoc_root(email)
     if not root.exists():
@@ -41,22 +39,22 @@ def javadoc(email, filepath='index.html'):
     return send_from_directory(root, filepath)
 
 
-@bp.get('/<email>/source/tree')
+@bp.get('/api/<email>/source/tree')
 def source_tree(email):
     return jsonify(oral.source_tree(email))
 
 
-@bp.get('/<email>/source/deps')
+@bp.get('/api/<email>/source/deps')
 def source_deps(email):
     return jsonify(oral.source_deps(email))
 
 
-@bp.get('/<email>/source/symbols')
+@bp.get('/api/<email>/source/symbols')
 def source_symbols(email):
     return jsonify(oral.source_all_symbols(email))
 
 
-@bp.get('/<email>/source/file')
+@bp.get('/api/<email>/source/file')
 def source_file(email):
     relpath = request.args.get('path', '')
     data = oral.source_file(email, relpath)

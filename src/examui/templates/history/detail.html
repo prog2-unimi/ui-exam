@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.name or student.email }} — p2e{% endblock %}
+
+{% block content %}
+<div class="px-3 py-3">
+
+  {# ── header ───────────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-baseline gap-3 mb-4">
+    <a href="{{ url_for('history.list_students') }}" class="text-muted me-1">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="mb-0">{{ student.name or student.email }}</h5>
+    <span class="text-muted">{{ student.email }}</span>
+    <span class="text-muted small">{{ student.matricola }}</span>
+  </div>
+
+  {# ── timeline ─────────────────────────────────────────────────────────── #}
+  <div class="list-group">
+    {% for ev in student.events %}
+    <div class="list-group-item px-3 py-2">
+
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-muted font-monospace small">
+          20{{ ev.date[:2] }}-{{ ev.date[2:4] }}-{{ ev.date[4:] }}
+        </span>
+
+        {% if ev.date == exam_date and ev.risultato != 'AS' %}
+          <a href="{{ url_for('oral.student', email=student.email) }}"
+             class="btn btn-sm btn-outline-primary py-0 ms-1">
+            <i class="bi bi-journal-text"></i> Oral →
+          </a>
+        {% endif %}
+
+        {% if ev.risultato == 'AS' %}
+          <span class="badge bg-secondary">Assente</span>
+        {% elif ev.risultato[:2] == 'RI' %}
+          <span class="badge bg-warning text-dark">Ritirato</span>
+        {% elif ev.risultato[:2] == 'RE' %}
+          <span class="badge bg-danger">Respinto</span>
+        {% elif ev.risultato[-1] == 'R' %}
+          <span class="badge bg-primary">{{ ev.risultato[:2] }} ~</span>
+        {% elif ev.risultato[-1] == 'V' %}
+          <span class="badge bg-success">{{ ev.risultato[:2] }}</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ ev.risultato }}</span>
+        {% endif %}
+      </div>
+
+      {% if ev.note %}
+      <pre class="mt-2 mb-0 ps-2 border-start border-2 small text-body-secondary"
+           style="white-space: pre-wrap">{{ ev.note }}</pre>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

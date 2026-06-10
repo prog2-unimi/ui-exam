@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ name or email }} — oral{% endblock %}
+
+{% block head %}
+<link href="{{ url_for('oral.pygments_css') }}" rel="stylesheet">
+<style>
+  .source-file:hover { background: var(--bs-primary-bg-subtle); cursor: pointer; }
+  .source-file.active { background: var(--bs-primary-bg-subtle); font-weight: 500; }
+  :root { --src-font-size: 13px; }
+  .src-pre { font-family: monospace; font-size: var(--src-font-size); line-height: 1.5; margin: 0; }
+  .src-line { display: flex; align-items: baseline; min-height: 1.5em; }
+  .src-line:hover { background: rgba(0,0,0,.04); }
+  .src-ln { min-width: 2.5rem; padding-right: .6rem; text-align: right;
+            color: #bbb; user-select: none; flex-shrink: 0; }
+  .src-gutter { width: 1.2rem; flex-shrink: 0; text-align: center; align-self: center; }
+  .src-code   { flex: 1; white-space: pre; overflow-x: visible; }
+  .src-jd     { color: #888; cursor: pointer; font-size: .85em; }
+  .src-jd:hover { color: var(--bs-primary); }
+  #deps-container svg { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column px-3 pt-3" style="height: 100vh;">
+
+  <div class="d-flex align-items-baseline gap-3 mb-3">
+    <a href="{{ url_for('history.detail', email=email) }}" class="text-muted me-1">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="mb-0">{{ name or email }}</h5>
+    <span class="text-muted">{{ email }}</span>
+    <span class="text-muted small">{{ matricola }}</span>
+  </div>
+
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item">
+      <button id="note-tab" class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-note" type="button">
+        <i class="bi bi-pencil"></i> Note <span id="note-status"></span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link {% if not has_source %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-source" type="button">
+        <i class="bi bi-code-slash"></i> Source
+      </button>
+    </li>
+    <li class="nav-item">
+      <button id="deps-tab-btn" class="nav-link {% if not has_source %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-deps" type="button">
+        <i class="bi bi-diagram-3"></i> Deps
+      </button>
+    </li>
+    <li class="nav-item">
+      <button id="javadoc-tab-btn" class="nav-link {% if not has_javadoc %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-javadoc" type="button">
+        <i class="bi bi-file-earmark-text"></i> Javadoc
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content flex-grow-1 border border-top-0 rounded-bottom overflow-hidden">
+
+    {# ── Note ──────────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade show active h-100 p-2" id="tab-note">
+      <textarea id="note-editor" class="form-control h-100"
+                style="resize: none; font-family: monospace; font-size: .9rem;">{{ note }}</textarea>
+    </div>
+
+    {# ── Source ────────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade h-100" id="tab-source">
+      <div class="d-flex h-100">
+
+        {# tree panel #}
+        <div class="border-end d-flex flex-column py-0 px-0" style="width:220px; min-width:220px; font-size:.82rem;">
+          <div class="px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0">
+            <select id="tree-filter" class="form-select form-select-sm" style="font-size:.78rem;">
+              <option value="relevant" selected>Relevant</option>
+              <option value="all">All</option>
+              <option value="trivial">Trivial</option>
+            </select>
+          </div>
+          <div id="source-tree" class="overflow-auto flex-grow-1 py-2 px-1 text-muted">Loading…</div>
+        </div>
+
+        {# code panel #}
+        <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+
+          {# toolbar #}
+          <div class="d-flex align-items-center gap-2 px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0">
+            <span id="src-filename" class="text-muted small font-monospace flex-grow-1">No file selected</span>
+            <input id="sym-search" type="search" placeholder="Search symbols…"
+                   class="form-control form-control-sm" style="width:180px; display:none;">
+            <select id="sym-select" class="form-select form-select-sm" style="width:auto; display:none;"></select>
+            <button id="src-javadoc-btn" class="btn btn-sm btn-outline-secondary" style="display:none;">
+              <i class="bi bi-book"></i> Javadoc
+            </button>
+            <select id="src-fontsize" class="form-select form-select-sm" style="width:auto;" title="Font size">
+              <option value="11">11px</option>
+              <option value="12">12px</option>
+              <option value="13" selected>13px</option>
+              <option value="14">14px</option>
+              <option value="16">16px</option>
+            </select>
+          </div>
+
+          {# code area #}
+          <div id="source-code" class="flex-grow-1 overflow-auto"></div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ── Deps ─────────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade h-100 position-relative" id="tab-deps">
+      <div id="deps-container" class="w-100 h-100 overflow-auto p-2"></div>
+      <div id="deps-loading" class="position-absolute top-50 start-50 translate-middle text-muted" style="display:none;">
+        Computing dependencies…
+      </div>
+    </div>
+
+    {# ── Javadoc ───────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade h-100" id="tab-javadoc">
+      {% if has_javadoc %}
+      <iframe id="javadoc-frame" src="{{ url_for('oral.javadoc', email=email) }}"
+              class="w-100 h-100 border-0"></iframe>
+      {% else %}
+      <div class="p-3 text-muted">Javadoc not available.</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Note save ────────────────────────────────────────────────────────────────
+const textarea = document.getElementById('note-editor');
+const status   = document.getElementById('note-status');
+let savedText  = textarea.value;
+let saveTimer  = null;
+
+function setStatus(text, color) {
+  status.textContent = text;
+  status.style.color = color;
+}
+function saveNote() {
+  if (textarea.value === savedText) return;
+  const fd = new FormData();
+  fd.append('note', textarea.value);
+  fetch('{{ url_for("oral.save_note", email=email) }}', { method: 'POST', body: fd })
+    .then(() => {
+      savedText = textarea.value;
+      setStatus('✓', 'var(--bs-success)');
+      setTimeout(() => setStatus('', ''), 1500);
+    });
+}
+textarea.addEventListener('input', () => {
+  setStatus('•', 'var(--bs-secondary)');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNote, 2000);
+});
+textarea.addEventListener('blur', () => { clearTimeout(saveTimer); saveNote(); });
+
+// ── Source navigator ─────────────────────────────────────────────────────────
+let allSymbols = [];   // [{name, kind, file, line}, …] for global search
+
+function renderTree(nodes, depth=0) {
+  let html = `<ul class="list-unstyled mb-0${depth ? ' ms-3' : ''}">`;
+  for (const n of nodes) {
+    if (n.type === 'dir') {
+      html += `<li>
+        <div class="d-flex align-items-center gap-1 text-muted py-0" style="user-select:none;">
+          <i class="bi bi-folder2-open" style="font-size:.75rem;"></i>
+          <span>${n.name}</span>
+        </div>
+        ${renderTree(n.children, depth + 1)}
+      </li>`;
+    } else {
+      html += `<li>
+        <div class="source-file d-flex align-items-center gap-1 px-1 rounded py-0"
+             data-path="${n.path}" role="button">
+          <i class="bi bi-filetype-java text-primary" style="font-size:.75rem;"></i>
+          <span>${n.name}</span>
+        </div>
+      </li>`;
+    }
+  }
+  return html + '</ul>';
+}
+
+const _TRIVIAL_FILE_RE = /(?:Exception|Error|Client)\.java$|^package-info\.java$/i;
+const _TRIVIAL_DIR_RE  = /^clients?$/i;
+
+function _isTrivialFile(name) { return _TRIVIAL_FILE_RE.test(name); }
+function _isTrivialDir(name)  { return _TRIVIAL_DIR_RE.test(name); }
+
+function filterNodes(nodes, mode) {
+  if (mode === 'all') return nodes;
+  const wantTrivial = mode === 'trivial';
+  return nodes.flatMap(n => {
+    if (n.type === 'file')       return _isTrivialFile(n.name) === wantTrivial ? [n] : [];
+    if (_isTrivialDir(n.name))   return wantTrivial ? [n] : [];
+    const children = filterNodes(n.children, mode);
+    return children.length ? [{ ...n, children }] : [];
+  });
+}
+
+let _fullTree = [];
+
+function applyTree() {
+  const el   = document.getElementById('source-tree');
+  const mode = document.getElementById('tree-filter').value;
+  const tree = filterNodes(_fullTree, mode);
+  if (!tree.length) { el.textContent = 'No files.'; return; }
+  el.innerHTML = renderTree(tree);
+  el.querySelectorAll('.source-file').forEach(div => {
+    div.addEventListener('click', () => loadSourceFile(div.dataset.path, div));
+  });
+}
+
+async function loadSourceTree() {
+  const resp = await fetch('{{ url_for("oral.source_tree", email=email) }}');
+  _fullTree  = await resp.json();
+  applyTree();
+  document.getElementById('tree-filter').addEventListener('change', applyTree);
+}
+
+async function loadSourceFile(relpath, clickedEl) {
+  document.querySelectorAll('.source-file').forEach(d => d.classList.remove('active'));
+  if (clickedEl) clickedEl.classList.add('active');
+
+  document.getElementById('src-filename').textContent = relpath;
+  document.getElementById('source-code').innerHTML =
+    '<div class="p-3 text-muted">Loading…</div>';
+
+  const resp = await fetch(
+    '{{ url_for("oral.source_file", email=email) }}?path=' + encodeURIComponent(relpath)
+  );
+  const data = await resp.json();
+
+  // ── Render per-line HTML ─────────────────────────────────────────────────
+  const jdBase = relpath.endsWith('.java')
+    ? '{{ url_for("oral.javadoc", email=email) }}' + relpath.slice(0, -5) + '.html'
+    : null;
+  const symLines  = new Map(data.symbols.map(s => [s.line, s]));
+  const TYPE_KINDS = new Set(['class', 'interface', 'enum', 'record']);
+
+  const linesHtml = data.lines.map((lineHtml, i) => {
+    const n   = i + 1;
+    const sym = symLines.get(n);
+    const hasJdLink = sym && jdBase && (sym.anchor || TYPE_KINDS.has(sym.kind));
+    const gutter = hasJdLink
+      ? `<span class="src-gutter"><i class="bi bi-book src-jd" data-jd="${jdBase}${sym.anchor ? '#' + sym.anchor : ''}" title="${sym.name}"></i></span>`
+      : `<span class="src-gutter"></span>`;
+    return `<div id="src-L${n}" class="src-line"><span class="src-ln">${n}</span>${gutter}<span class="src-code">${lineHtml}</span></div>`;
+  }).join('');
+
+  document.getElementById('source-code').innerHTML =
+    `<div class="src"><div class="src-pre">${linesHtml}</div></div>`;
+  applyFontSize();
+
+  document.querySelectorAll('.src-jd').forEach(icon => {
+    icon.addEventListener('click', () => openJavadoc(icon.dataset.jd));
+  });
+
+  // ── Symbols dropdown ─────────────────────────────────────────────────────
+  const sel    = document.getElementById('sym-select');
+  const search = document.getElementById('sym-search');
+  if (data.symbols.length) {
+    sel.style.display = '';
+    sel.innerHTML = data.symbols
+      .map(s => `<option value="${s.line}">[${s.kind}] ${s.name}</option>`)
+      .join('');
+    sel.onchange = () => scrollToLine(parseInt(sel.value));
+    search.style.display = '';
+    search.value = '';
+    search.oninput = () => {
+      const q = search.value.toLowerCase();
+      Array.from(sel.options).forEach(o => { o.hidden = q && !o.text.toLowerCase().includes(q); });
+    };
+  } else {
+    sel.style.display = 'none';
+    search.style.display = 'none';
+  }
+
+  // ── File-level javadoc button ────────────────────────────────────────────
+  const btn = document.getElementById('src-javadoc-btn');
+  if (jdBase) {
+    btn.style.display = '';
+    btn.onclick = () => openJavadoc(jdBase);
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function openJavadoc(url) {
+  const frame  = document.getElementById('javadoc-frame');
+  const tabBtn = document.getElementById('javadoc-tab-btn');
+  if (!frame || !tabBtn) return;
+  const pane = document.getElementById('tab-javadoc');
+  if (pane.classList.contains('show')) {
+    // Tab already visible — navigate immediately
+    frame.src = url;
+  } else {
+    // Wait until the tab is fully visible before navigating (fragment needs visible iframe)
+    tabBtn.addEventListener('shown.bs.tab', () => { frame.src = url; }, { once: true });
+    bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+  }
+}
+
+function scrollToLine(line) {
+  const el = document.getElementById('src-L' + line);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── Font size ────────────────────────────────────────────────────────────────
+const fsEl  = document.getElementById('src-fontsize');
+const fsKey = 'oral-src-font-size';
+const saved = localStorage.getItem(fsKey);
+if (saved) { fsEl.value = saved; document.documentElement.style.setProperty('--src-font-size', saved + 'px'); }
+
+function applyFontSize() {
+  const v = fsEl.value;
+  document.documentElement.style.setProperty('--src-font-size', v + 'px');
+}
+fsEl.addEventListener('change', () => { localStorage.setItem(fsKey, fsEl.value); applyFontSize(); });
+
+// Load tree the first time the Source tab is shown
+document.querySelector('[data-bs-target="#tab-source"]')
+  .addEventListener('shown.bs.tab', function onFirst() {
+    loadSourceTree();
+    this.removeEventListener('shown.bs.tab', onFirst);
+  });
+
+// ── Dependency graph ─────────────────────────────────────────────────────────
+async function loadDepsGraph() {
+  const container = document.getElementById('deps-container');
+  const loading   = document.getElementById('deps-loading');
+  loading.style.display = '';
+
+  const resp = await fetch('{{ url_for("oral.source_deps", email=email) }}');
+  const data = await resp.json();
+  loading.style.display = 'none';
+
+  if (!data.svg) {
+    container.innerHTML = '<p class="text-muted p-3">No dependency data.</p>';
+    return;
+  }
+
+  container.innerHTML = data.svg;
+
+  // Scale SVG to fit the container using the viewBox dimensions
+  const svgEl = container.querySelector('svg');
+  if (svgEl) {
+    const vb = svgEl.viewBox?.baseVal;
+    if (vb && vb.width && vb.height) {
+      const pad = 16;
+      const scale = Math.min(
+        (container.clientWidth  - pad) / vb.width,
+        (container.clientHeight - pad) / vb.height
+      );
+      svgEl.setAttribute('width',  Math.round(vb.width  * scale));
+      svgEl.setAttribute('height', Math.round(vb.height * scale));
+    }
+  }
+
+  // Wire click handlers: node → open source file
+  Object.entries(data.paths).forEach(([nid, relpath]) => {
+    const el = document.getElementById(nid);
+    if (!el) return;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      loadSourceFile(relpath, null);
+      bootstrap.Tab.getOrCreateInstance(
+        document.querySelector('[data-bs-target="#tab-source"]')
+      ).show();
+    });
+  });
+
+}
+
+document.getElementById('deps-tab-btn')
+  .addEventListener('shown.bs.tab', function onFirst() {
+    loadDepsGraph();
+    this.removeEventListener('shown.bs.tab', onFirst);
+  });
+</script>
+{% endblock %}

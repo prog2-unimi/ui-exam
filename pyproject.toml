@@ -1,0 +1,19 @@
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12.0"]
+build-backend = "uv_build"
+
+[project]
+name = "examui"
+version = "0.1.0"
+description = "Oral exam assistant web UI"
+requires-python = ">=3.11"
+dependencies = [
+    "flask",
+    "pandas",
+    "xlrd",
+    "pygments",
+    "tree-sitter",
+    "tree-sitter-java",
+    "openpyxl>=3.1.5",
+    "graphviz>=0.20",
+]

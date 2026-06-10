@@ -1,0 +1,8 @@
+.envrc
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+.DS_Store

@@ -1,0 +1,4 @@
+export EXAM_DATE="260219"                          # YYMMDD of the exam session
+export HISTORY_DIR="$(realpath "$(pwd)/../exams/history")"
+export EVALS_DIR="$(realpath "$(pwd)/../exams/evals")"
+export STUDENT_BASE="$(realpath "$(pwd)/../exams/so/student")"

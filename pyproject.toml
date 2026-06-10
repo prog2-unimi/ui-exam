@@ -9,6 +9,7 @@ description = "Oral exam assistant web UI"
 requires-python = ">=3.11"
 dependencies = [
     "flask",
+    "gunicorn",
     "pandas",
     "xlrd",
     "pygments",

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
-from flask import Blueprint, Response, render_template, request, jsonify, send_from_directory
+from flask import Blueprint, render_template, request, jsonify, send_from_directory
 from examui.models import oral
 from examui.models.history import all_students
 
@@ -61,8 +61,3 @@ def source_file(email):
     if data is None:
         return 'Not found', 404
     return jsonify(data)
-
-
-@bp.get('/pygments.css')
-def pygments_css():
-    return Response(oral.pygments_css(), mimetype='text/css')

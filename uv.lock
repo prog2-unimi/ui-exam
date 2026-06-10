@@ -50,6 +50,35 @@ wheels = [
 ]
 
 [[package]]
+name = "examui"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "flask" },
+    { name = "graphviz" },
+    { name = "gunicorn" },
+    { name = "openpyxl" },
+    { name = "pandas" },
+    { name = "pygments" },
+    { name = "tree-sitter" },
+    { name = "tree-sitter-java" },
+    { name = "xlrd" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flask" },
+    { name = "graphviz", specifier = ">=0.20" },
+    { name = "gunicorn" },
+    { name = "openpyxl", specifier = ">=3.1.5" },
+    { name = "pandas" },
+    { name = "pygments" },
+    { name = "tree-sitter" },
+    { name = "tree-sitter-java" },
+    { name = "xlrd" },
+]
+
+[[package]]
 name = "flask"
 version = "3.1.3"
 source = { registry = "https://pypi.org/simple" }
@@ -73,6 +102,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f8/b3/3ac91e9be6b761a4b30d66ff165e54439dcd48b83f4e20d644867215f6ca/graphviz-0.21.tar.gz", hash = "sha256:20743e7183be82aaaa8ad6c93f8893c923bd6658a04c32ee115edb3c8a835f78", size = 200434, upload-time = "2025-06-15T09:35:05.824Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/91/4c/e0ce1ef95d4000ebc1c11801f9b944fa5910ecc15b5e351865763d8657f8/graphviz-0.21-py3-none-any.whl", hash = "sha256:54f33de9f4f911d7e84e4191749cac8cc5653f815b06738c54db9a15ab8b1e42", size = 47300, upload-time = "2025-06-15T09:35:04.433Z" },
+]
+
+[[package]]
+name = "gunicorn"
+version = "26.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/b7/a4a3f632f823e432ce6bc65f62961b7980c898c77f075a2f7118cb3846fe/gunicorn-26.0.0.tar.gz", hash = "sha256:ca9346f85e3a4aeeb64d491045c16b9a35647abd37ea15efe53080eb8b090baf", size = 727286, upload-time = "2026-05-05T06:38:25.529Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/40/9c2384fc2be4ad25dd4a49decd5ad9ea5a3639814c11bd40ab77cb9f0a14/gunicorn-26.0.0-py3-none-any.whl", hash = "sha256:40233d26a5f0d1872916188c276e21641155111c2853f0c2cd55260aec0d24fc", size = 212009, upload-time = "2026-05-05T06:38:23.007Z" },
 ]
 
 [[package]]
@@ -262,6 +303,15 @@ wheels = [
 ]
 
 [[package]]
+name = "packaging"
+version = "26.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/f1/e7a6dd94a8d4a5626c03e4e99c87f241ba9e350cd9e6d75123f992427270/packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661", size = 228134, upload-time = "2026-04-24T20:15:23.917Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e", size = 100195, upload-time = "2026-04-24T20:15:22.081Z" },
+]
+
+[[package]]
 name = "pandas"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -409,33 +459,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ba/19/1b9b0e29f30c6d35cb345486df41110984ea67ae69dddbc0e8a100999493/tzdata-2026.2.tar.gz", hash = "sha256:9173fde7d80d9018e02a662e168e5a2d04f87c41ea174b139fbef642eda62d10", size = 198254, upload-time = "2026-04-24T15:22:08.651Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/e4/dccd7f47c4b64213ac01ef921a1337ee6e30e8c6466046018326977efd95/tzdata-2026.2-py2.py3-none-any.whl", hash = "sha256:bbe9af844f658da81a5f95019480da3a89415801f6cc966806612cc7169bffe7", size = 349321, upload-time = "2026-04-24T15:22:05.876Z" },
-]
-
-[[package]]
-name = "examui"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "flask" },
-    { name = "graphviz" },
-    { name = "openpyxl" },
-    { name = "pandas" },
-    { name = "pygments" },
-    { name = "tree-sitter" },
-    { name = "tree-sitter-java" },
-    { name = "xlrd" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "flask" },
-    { name = "graphviz", specifier = ">=0.20" },
-    { name = "openpyxl", specifier = ">=3.1.5" },
-    { name = "pandas" },
-    { name = "pygments" },
-    { name = "tree-sitter" },
-    { name = "tree-sitter-java" },
-    { name = "xlrd" },
 ]
 
 [[package]]

@@ -3,8 +3,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
+from functools import lru_cache
 from pathlib import Path
+
+_log = logging.getLogger(__name__)
 
 import graphviz as _graphviz
 import pandas as pd
@@ -43,6 +47,7 @@ def has_source(email: str) -> bool:
     return source_root(email).exists()
 
 
+@lru_cache(maxsize=None)
 def source_tree(email: str) -> list:
     root = source_root(email)
     if not root.exists():
@@ -51,6 +56,7 @@ def source_tree(email: str) -> list:
     return _walk(root, root, trivial_paths)
 
 
+@lru_cache(maxsize=None)
 def source_all_symbols(email: str) -> list[dict]:
     root = source_root(email)
     if not root.exists():
@@ -159,6 +165,7 @@ def _close_trivial(parsed: dict[str, dict]) -> None:
                         break
 
 
+@lru_cache(maxsize=None)
 def _trivial_rel_paths(root: Path) -> set[str]:
     """Return root-relative paths of all trivial .java files (by name or inheritance closure)."""
     parsed: dict[str, dict] = {}
@@ -198,6 +205,7 @@ def _javadoc_ids(email: str, relpath: str) -> frozenset[str]:
     return frozenset(re.findall(r'\bid="([^"]*)"', jd_path.read_text(errors='replace')))
 
 
+@lru_cache(maxsize=None)
 def source_file(email: str, relpath: str) -> dict | None:
     root = source_root(email).resolve()
     path = (root / relpath).resolve()
@@ -298,6 +306,7 @@ def _tarjan_sccs(nodes: list[str], adj: dict[str, list[str]]) -> list[list[str]]
     return sccs
 
 
+@lru_cache(maxsize=None)
 def source_deps(email: str) -> dict:
     root = source_root(email)
     if not root.exists():
@@ -407,6 +416,17 @@ def source_deps(email: str) -> dict:
 
     svg = dot.pipe(format='svg').decode('utf-8')
     return {'svg': svg, 'paths': paths}
+
+
+def warmup(email: str) -> None:
+    """Populate all caches for one student. Call at startup before workers fork."""
+    _log.info('[warmup] %s: tree', email)
+    source_tree(email)
+    _log.info('[warmup] %s: symbols', email)
+    source_all_symbols(email)
+    _log.info('[warmup] %s: deps', email)
+    source_deps(email)
+    _log.info('[warmup] %s: done', email)
 
 
 def javadoc_path_for_source(relpath: str) -> str | None:

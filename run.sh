@@ -10,8 +10,5 @@ echo "HISTORY_DIR:  $HISTORY_DIR"
 echo "EVALS_DIR:    $EVALS_DIR"
 echo "STUDENT_BASE: $STUDENT_BASE"
 
-export FLASK_APP=examui
-export FLASK_DEBUG="${FLASK_DEBUG:-1}"
-
 cd "$(dirname "$0")"
-exec uv run flask run --host 127.0.0.1 --port 8765 "$@"
+exec uv run gunicorn --workers=1 --reload --bind=127.0.0.1:8765 'examui:create_app()' "$@"

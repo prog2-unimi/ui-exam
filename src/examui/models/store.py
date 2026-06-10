@@ -18,50 +18,60 @@ class LiveCurrentExamEvent:
         self.date    = date
         self.metrics = Metrics.from_row(row)
 
-    @property
-    def mark(self) -> str:
-        path = _marks_path()
+    def _marks_path(self) -> Path:
+        return config.EVALS_DIR / exam_date() / 'marks.tsv'
+
+    def _note_path(self) -> Path:
+        return config.EVALS_DIR / exam_date() / 'notes' / f'{self._email}.md'
+
+    def _read_tsv(self, field: str, default: str = '') -> str:
+        path = self._marks_path()
         if not path.exists():
-            return '??'
+            return default
         df  = pd.read_csv(path, sep='\t', na_filter=False)
         row = df[df['email'] == self._email]
         if row.empty:
             raise RuntimeError(f'{self._email} not in marks.tsv')
-        return str(row.iloc[0]['mark'])
+        return str(row.iloc[0][field])
 
-    @mark.setter
-    def mark(self, value: str) -> None:
-        _update_marks_tsv(self._email, mark=value)
-
-    @property
-    def short_note(self) -> str:
-        path = _marks_path()
+    def _write_tsv(self, **kwargs: str) -> None:
+        path = self._marks_path()
         if not path.exists():
-            return ''
-        df  = pd.read_csv(path, sep='\t', na_filter=False)
-        row = df[df['email'] == self._email]
-        if row.empty:
+            raise RuntimeError(f'marks.tsv not found at {path} — exam not yet prepared')
+        df = pd.read_csv(path, sep='\t', na_filter=False)
+        if self._email not in df['email'].values:
             raise RuntimeError(f'{self._email} not in marks.tsv')
-        return str(row.iloc[0]['note'])
+        for col, val in kwargs.items():
+            df.loc[df['email'] == self._email, col] = val
+        df.to_csv(path, sep='\t', index=False)
 
-    @short_note.setter
-    def short_note(self, value: str) -> None:
-        _update_marks_tsv(self._email, short_note=value)
-
-    @property
-    def long_note(self) -> str:
-        p = _long_note_path(self._email)
+    def _read_md(self) -> str:
+        p = self._note_path()
         return p.read_text() if p.exists() else ''
 
-    @long_note.setter
-    def long_note(self, text: str) -> None:
-        p       = _long_note_path(self._email)
+    def _write_md(self, text: str) -> None:
+        p       = self._note_path()
         cleaned = '\n'.join(l for l in text.splitlines() if not l.startswith('#')).strip()
         if cleaned:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(cleaned)
         elif p.exists():
             p.unlink()
+
+    @property
+    def mark(self) -> str:        return self._read_tsv('mark', default='??')
+    @mark.setter
+    def mark(self, value: str):   self._write_tsv(mark=value)
+
+    @property
+    def short_note(self) -> str:       return self._read_tsv('note')
+    @short_note.setter
+    def short_note(self, value: str):  self._write_tsv(note=value)
+
+    @property
+    def long_note(self) -> str:        return self._read_md()
+    @long_note.setter
+    def long_note(self, text: str):    self._write_md(text)
 
 
 @cache
@@ -71,28 +81,6 @@ def exam_date() -> str:
     if not files:
         raise RuntimeError(f'No iscrizioni XLS files found in {config.HISTORY_DIR}/iscrizioni')
     return files[-1].stem
-
-
-def _marks_path() -> Path:
-    return config.EVALS_DIR / exam_date() / 'marks.tsv'
-
-
-def _long_note_path(email: str) -> Path:
-    return config.EVALS_DIR / exam_date() / 'notes' / f'{email}.md'
-
-
-def _update_marks_tsv(email: str, *, mark: str | None = None, short_note: str | None = None) -> None:
-    path = _marks_path()
-    if not path.exists():
-        raise RuntimeError(f'marks.tsv not found at {path} — exam not yet prepared')
-    df = pd.read_csv(path, sep='\t', na_filter=False)
-    if email not in df['email'].values:
-        raise RuntimeError(f'{email} not in marks.tsv')
-    if mark is not None:
-        df.loc[df['email'] == email, 'mark'] = mark
-    if short_note is not None:
-        df.loc[df['email'] == email, 'note'] = short_note
-    df.to_csv(path, sep='\t', index=False)
 
 
 @cache
@@ -146,7 +134,7 @@ def all_students() -> dict[str, Student]:
 
     # ── current marks.tsv → determines who has source ─────────────────────────
     current_rows: dict[str, dict] = {}
-    marks_path = _marks_path()
+    marks_path = config.EVALS_DIR / exam_date() / 'marks.tsv'
     if marks_path.exists():
         df = pd.read_csv(marks_path, sep='\t', na_filter=False)
         for _, row in df.iterrows():

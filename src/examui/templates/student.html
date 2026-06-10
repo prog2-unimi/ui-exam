@@ -76,25 +76,6 @@
     {# ── History ───────────────────────────────────────────────────────────── #}
     <div class="tab-pane fade {% if not current or cm is none or cm == 'AS' %}show active{% endif %} h-100 overflow-auto p-2" id="tab-history">
       <div class="list-group">
-        {% if current %}
-        <div class="list-group-item px-3 py-2">
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="text-muted font-monospace small">
-              20{{ current.date[:2] }}-{{ current.date[2:4] }}-{{ current.date[4:] }}
-            </span>
-            {% if cm == 'AS' %}
-              <span class="badge bg-secondary">Assente</span>
-            {% else %}
-              <span class="badge bg-warning text-dark">{{ cm }}</span>
-            {% endif %}
-          </div>
-          {% set cn = current.long_note %}
-          {% if cn %}
-          <pre class="mt-2 mb-0 ps-2 border-start border-2 small text-body-secondary"
-               style="white-space: pre-wrap">{{ cn }}</pre>
-          {% endif %}
-        </div>
-        {% endif %}
         {% for ev in events %}
         <div class="list-group-item px-3 py-2">
           <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -121,7 +102,7 @@
           {% endif %}
         </div>
         {% else %}
-        {% if not current %}<div class="text-muted p-2 small">No history.</div>{% endif %}
+        <div class="text-muted p-2 small">No history.</div>
         {% endfor %}
       </div>
     </div>

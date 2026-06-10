@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ name or email }} — oral{% endblock %}
+
+{% block head %}
+<link href="{{ url_for('static', filename='pygments.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='student.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+{% set cm = current.mark if current else none %}
+<div class="d-flex flex-column px-3 pt-3" style="height: 100vh;">
+
+  {# ── Header with timer ──────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <a href="{{ url_for('history.list_students') }}" class="text-muted flex-shrink-0">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="mb-0 flex-shrink-0">{{ name or email }}</h5>
+    <span class="text-muted flex-shrink-0">{{ email }}</span>
+    <span class="text-muted small flex-shrink-0">{{ matricola }}</span>
+    {% if current and cm != none and cm != 'AS' %}
+    <div class="flex-grow-1 d-flex align-items-center gap-2">
+      <button id="timer-btn" class="btn btn-sm btn-outline-secondary flex-shrink-0">Start</button>
+      <span id="timer-display" class="font-monospace small text-muted flex-shrink-0" style="min-width:7rem;">0:00 / {{ slot_minutes }}:00</span>
+      <div class="flex-grow-1">
+        <div class="progress" style="height:6px;">
+          <div id="timer-bar" class="progress-bar bg-success" style="width:0%;"></div>
+        </div>
+      </div>
+      <span id="timer-badge" class="badge d-none flex-shrink-0"></span>
+      <label class="d-flex align-items-center gap-1 small text-muted mb-0 flex-shrink-0">
+        <input id="slot-input" type="number" min="5" max="120" value="{{ slot_minutes }}"
+               class="form-control form-control-sm text-center" style="width:3.5rem;">
+        min
+      </label>
+    </div>
+    {% endif %}
+  </div>
+
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item">
+      <button id="history-tab-btn" class="nav-link {% if not current or cm is none or cm == 'AS' %}active{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-history" type="button">
+        <i class="bi bi-clock-history"></i> History
+      </button>
+    </li>
+    <li class="nav-item">
+      <button id="note-tab" class="nav-link {% if current and cm != none and cm != 'AS' %}active{% endif %} {% if not current or cm is none or cm == 'AS' %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-note" type="button">
+        <i class="bi bi-pencil"></i> Notes
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link {% if not current or cm is none or cm == 'AS' %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-source" type="button">
+        <i class="bi bi-code-slash"></i> Source
+      </button>
+    </li>
+    <li class="nav-item">
+      <button id="deps-tab-btn" class="nav-link {% if not current or cm is none or cm == 'AS' %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-deps" type="button">
+        <i class="bi bi-diagram-3"></i> Deps
+      </button>
+    </li>
+    <li class="nav-item">
+      <button id="javadoc-tab-btn" class="nav-link {% if not current or cm is none or cm == 'AS' %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-javadoc" type="button">
+        <i class="bi bi-file-earmark-text"></i> Javadoc
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content flex-grow-1 border border-top-0 rounded-bottom overflow-hidden">
+
+    {# ── History ───────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade {% if not current or cm is none or cm == 'AS' %}show active{% endif %} h-100 overflow-auto p-2" id="tab-history">
+      <div class="list-group">
+        {% if current %}
+        <div class="list-group-item px-3 py-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted font-monospace small">
+              20{{ current.date[:2] }}-{{ current.date[2:4] }}-{{ current.date[4:] }}
+            </span>
+            {% if cm == 'AS' %}
+              <span class="badge bg-secondary">Assente</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">{{ cm }}</span>
+            {% endif %}
+          </div>
+          {% set cn = current.long_note %}
+          {% if cn %}
+          <pre class="mt-2 mb-0 ps-2 border-start border-2 small text-body-secondary"
+               style="white-space: pre-wrap">{{ cn }}</pre>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% for ev in events %}
+        <div class="list-group-item px-3 py-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted font-monospace small">
+              20{{ ev.date[:2] }}-{{ ev.date[2:4] }}-{{ ev.date[4:] }}
+            </span>
+            {% if ev.mark == 'AS' %}
+              <span class="badge bg-secondary">Assente</span>
+            {% elif ev.mark[:2] == 'RI' %}
+              <span class="badge bg-warning text-dark">Ritirato</span>
+            {% elif ev.mark[:2] == 'RE' %}
+              <span class="badge bg-danger">Respinto</span>
+            {% elif ev.mark[-1] == 'R' %}
+              <span class="badge bg-primary">{{ ev.mark[:2] }} ~</span>
+            {% elif ev.mark[-1] == 'V' %}
+              <span class="badge bg-success">{{ ev.mark[:2] }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ ev.mark }}</span>
+            {% endif %}
+          </div>
+          {% if ev.note %}
+          <pre class="mt-2 mb-0 ps-2 border-start border-2 small text-body-secondary"
+               style="white-space: pre-wrap">{{ ev.note }}</pre>
+          {% endif %}
+        </div>
+        {% else %}
+        {% if not current %}<div class="text-muted p-2 small">No history.</div>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ── Notes ─────────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade {% if current and cm != none and cm != 'AS' %}show active{% endif %} h-100 p-2 d-flex flex-column gap-2" id="tab-note">
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <label class="form-label mb-0 small text-muted flex-shrink-0" for="mark-input">Mark</label>
+        <input id="mark-input" type="text" value="{{ cm if cm and cm != 'AS' else '' }}"
+               class="form-control form-control-sm" style="width:6rem;">
+        <span id="mark-status" class="small"></span>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <label class="form-label mb-0 small text-muted flex-shrink-0" for="short-note-input">Note</label>
+        <input id="short-note-input" type="text"
+               value="{{ current.short_note if current and cm != none and cm != 'AS' else '' }}"
+               class="form-control form-control-sm flex-grow-1">
+        <span id="note-status" class="small"></span>
+      </div>
+      <textarea id="long-note-editor" class="form-control flex-grow-1"
+                style="resize: none; font-family: monospace; font-size: .9rem;">{{ current.long_note if current and cm != none and cm != 'AS' else '' }}</textarea>
+    </div>
+
+    {# ── Source ────────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade h-100" id="tab-source">
+      <div class="d-flex h-100">
+
+        {# tree panel #}
+        <div class="border-end d-flex flex-column py-0 px-0" style="width:220px; min-width:220px; font-size:.82rem;">
+          <div class="px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0 d-flex flex-column gap-1">
+            <input id="sym-search" type="search" placeholder="Search symbols…"
+                   class="form-control form-control-sm" style="font-size:.78rem;">
+            <select id="tree-filter" class="form-select form-select-sm" style="font-size:.78rem;">
+              <option value="relevant" selected>Relevant</option>
+              <option value="all">All</option>
+              <option value="trivial">Trivial</option>
+            </select>
+          </div>
+          <div id="source-tree" class="overflow-auto flex-grow-1 py-2 px-1 text-muted">Loading…</div>
+        </div>
+
+        {# code panel #}
+        <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+
+          {# toolbar #}
+          <div class="d-flex align-items-center gap-2 px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0">
+            <span id="src-filename" class="text-muted small font-monospace flex-grow-1">No file selected</span>
+            <select id="sym-select" class="form-select form-select-sm" style="width:auto; display:none;"></select>
+            <select id="src-fontsize" class="form-select form-select-sm" style="width:auto;" title="Font size">
+              <option value="11">11px</option>
+              <option value="12">12px</option>
+              <option value="13" selected>13px</option>
+              <option value="14">14px</option>
+              <option value="16">16px</option>
+            </select>
+          </div>
+
+          {# code area #}
+          <div id="source-code" class="flex-grow-1 overflow-auto"></div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ── Deps ─────────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade h-100 position-relative" id="tab-deps">
+      <div id="deps-container" class="w-100 h-100 overflow-auto p-2"></div>
+      <div id="deps-loading" class="position-absolute top-50 start-50 translate-middle text-muted" style="display:none;">
+        Computing dependencies…
+      </div>
+    </div>
+
+    {# ── Javadoc ───────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade h-100" id="tab-javadoc">
+      {% if current and cm != none and cm != 'AS' %}
+      <iframe id="javadoc-frame" src="{{ url_for('student.javadoc', email=email) }}"
+              class="w-100 h-100 border-0"></iframe>
+      {% else %}
+      <div class="p-3 text-muted">Javadoc not available.</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CFG = {
+  email:       {{ email | tojson }},
+  slotMinutes: {{ slot_minutes }},
+  urls: {
+    saveNote:      {{ url_for('student.save_note',      email=email) | tojson }},
+    saveMark:      {{ url_for('student.save_mark',      email=email) | tojson }},
+    sourceTree:    {{ url_for('student.source_tree',    email=email) | tojson }},
+    sourceFile:    {{ url_for('student.source_file',    email=email) | tojson }},
+    sourceDeps:    {{ url_for('student.source_deps',    email=email) | tojson }},
+    sourceSymbols: {{ url_for('student.source_symbols', email=email) | tojson }},
+    javadoc:       {{ url_for('student.javadoc',        email=email) | tojson }},
+  },
+};
+</script>
+<script src="{{ url_for('static', filename='student.js') }}"></script>
+{% endblock %}

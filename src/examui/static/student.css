@@ -1,0 +1,13 @@
+.source-file:hover  { background: var(--bs-primary-bg-subtle); cursor: pointer; }
+.source-file.active { background: var(--bs-primary-bg-subtle); font-weight: 500; }
+:root { --src-font-size: 13px; }
+.src-pre          { font-family: monospace; font-size: var(--src-font-size); line-height: 1.5; margin: 0; }
+.src-line         { display: flex; align-items: baseline; min-height: 1.5em; }
+.src-line:hover   { background: rgba(0,0,0,.04); }
+.src-ln           { min-width: 2.5rem; padding-right: .6rem; text-align: right;
+                    color: #bbb; user-select: none; flex-shrink: 0; }
+.src-gutter       { width: 1.2rem; flex-shrink: 0; text-align: center; align-self: center; }
+.src-code         { flex: 1; white-space: pre; overflow-x: visible; }
+.src-jd           { color: #888; cursor: pointer; font-size: .85em; }
+.src-jd:hover     { color: var(--bs-primary); }
+#deps-container svg { display: block; }

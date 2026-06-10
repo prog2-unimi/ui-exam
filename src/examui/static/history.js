@@ -1,11 +1,9 @@
 const fmtDate = (d) => d ? `${d.slice(0,2)}-${d.slice(2,4)}-${d.slice(4)}` : '';
 
-function renderMark(vm, cm) {
+function renderMark(vm) {
   const KIND_CLS = { pass: 'bg-success', tilde: 'bg-primary', RE: 'bg-danger', RI: 'bg-warning text-dark' };
-  let html = '';
-  if (vm) html += `<span class="badge ${KIND_CLS[vm.kind] ?? 'bg-secondary'}">${vm.value}</span>`;
-  if (!vm && cm && cm !== 'AS') html += `<span class="badge bg-warning text-dark">${cm}</span>`;
-  return html;
+  if (!vm) return '';
+  return `<span class="badge ${KIND_CLS[vm.kind] ?? 'bg-secondary'}">${vm.value}</span>`;
 }
 
 const table = new DataTable('#students-table', {
@@ -21,14 +19,14 @@ const table = new DataTable('#students-table', {
   columns: [
     { data: 'name' },
     { data: 'email',
-      render: (d) => `<a href="/${d}">${d}</a>` },
+      render: (d) => `<a href="/student/${d}">${d}</a>` },
     { data: 'matricola' },
     { data: 'n', className: 'text-end' },
     { data: 'first',      render: fmtDate },
     { data: 'last',       render: fmtDate },
     { data: 'first_eval', render: fmtDate },
     { data: null, orderable: false,
-      render: (_, __, row) => renderMark(row.verbali_mark, row.current_mark) },
+      render: (_, __, row) => renderMark(row.verbali_mark) },
   ],
 });
 
@@ -36,12 +34,11 @@ const FILTER_KEY = 'history-filters';
 
 function saveFilters() {
   sessionStorage.setItem(FILTER_KEY, JSON.stringify({
-    date:       document.getElementById('date-filter').value,
-    refused:    document.getElementById('refused-filter').checked,
-    examSource: document.getElementById('exam-source-filter').checked,
-    order:      table.order(),
-    search:     table.search(),
-    pageLen:    table.page.len(),
+    date:    document.getElementById('date-filter').value,
+    refused: document.getElementById('refused-filter').checked,
+    order:   table.order(),
+    search:  table.search(),
+    pageLen: table.page.len(),
   }));
 }
 
@@ -50,9 +47,8 @@ function restoreFilters() {
   if (!saved) return;
   try {
     const f = JSON.parse(saved);
-    document.getElementById('date-filter').value          = f.date       ?? '';
-    document.getElementById('refused-filter').checked     = f.refused    ?? false;
-    document.getElementById('exam-source-filter').checked = f.examSource ?? false;
+    document.getElementById('date-filter').value      = f.date    ?? '';
+    document.getElementById('refused-filter').checked = f.refused ?? false;
     if (f.order)   table.order(f.order);
     if (f.search)  { document.getElementById('dt-search').value = f.search; table.search(f.search); }
     if (f.pageLen) { document.getElementById('page-len').value  = f.pageLen; table.page.len(f.pageLen); }
@@ -63,9 +59,6 @@ DataTable.ext.search.push((_settings, _data, _idx, row) => {
   const date = document.getElementById('date-filter').value;
   if (date && !row.dates.includes(date)) return false;
   if (document.getElementById('refused-filter').checked && !row.has_refused) return false;
-  if (document.getElementById('exam-source-filter').checked) {
-    if (!row.dates.includes(CFG.examDate) || !row.has_source) return false;
-  }
   return true;
 });
 
@@ -75,10 +68,6 @@ table.draw();
 function onChange() { saveFilters(); table.draw(); }
 document.getElementById('date-filter').addEventListener('change', onChange);
 document.getElementById('refused-filter').addEventListener('change', onChange);
-document.getElementById('exam-source-filter').addEventListener('change', function() {
-  if (this.checked) document.getElementById('date-filter').value = CFG.examDate;
-  onChange();
-});
 table.on('order.dt', saveFilters);
 
 document.getElementById('dt-search').addEventListener('input', function() {
@@ -91,17 +80,5 @@ document.getElementById('page-len').addEventListener('change', function() {
   saveFilters();
 });
 
-// ── Current student button ────────────────────────────────────────────────────
-function updateCurrentStudentBtn() {
-  const stored = JSON.parse(sessionStorage.getItem('examTimer') || 'null');
-  const btn    = document.getElementById('current-student-btn');
-  if (!stored?.email) { btn.classList.add('d-none'); return; }
-  const student = CFG.students.find(s => s.email === stored.email);
-  document.getElementById('current-student-name').textContent = student?.name ?? stored.email;
-  btn.href = '/' + stored.email;
-  btn.classList.remove('d-none');
-}
-updateCurrentStudentBtn();
-
-// Re-apply filters and refresh current-student button on bfcache restore
-window.addEventListener('pageshow', e => { if (e.persisted) { table.draw(); updateCurrentStudentBtn(); } });
+// Re-apply filters on bfcache restore
+window.addEventListener('pageshow', e => { if (e.persisted) table.draw(); });

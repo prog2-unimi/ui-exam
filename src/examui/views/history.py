@@ -4,24 +4,21 @@
 import json
 
 from flask import Blueprint, render_template
-from examui.models.history import all_students, exam_date
+from examui.models.history import all_students
 
 bp = Blueprint('history', __name__, url_prefix='')
 
 
-
-@bp.get('/')
+@bp.get('/history')
 def list_students():
-    current_date = exam_date()
-    students     = all_students()
+    students = all_students()
 
     summary   = []
     all_dates = set()
 
     for s in sorted(students.values(), key=lambda s: s.name):
         event_dates = sorted({e.date for e in s.events}, reverse=True)
-        dates       = ([current_date] + event_dates) if s.current else event_dates
-        all_dates.update(dates)
+        all_dates.update(event_dates)
 
         first_eval  = next((e.date for e in reversed(s.events) if e.mark != 'AS'), '')
         has_refused = any(
@@ -29,24 +26,19 @@ def list_students():
             for e in s.events
         )
 
-        current_mark = s.current.mark if s.current else None
-
         summary.append({
             'email':        s.email,
             'name':         s.name,
             'matricola':    s.matricola,
             'n':            sum(1 for e in s.events if e.mark != 'AS'),
-            'first':        dates[-1] if dates else '',
-            'last':         dates[0]  if dates else '',
+            'first':        event_dates[-1] if event_dates else '',
+            'last':         event_dates[0]  if event_dates else '',
             'first_eval':   first_eval,
             'has_refused':  has_refused,
-            'has_source':   current_mark is not None and current_mark != 'AS',
-            'dates':        dates,
+            'dates':        event_dates,
             'verbali_mark': s.verbali_mark,
-            'current_mark': current_mark,
         })
 
-    return render_template('list.html',
+    return render_template('history.html',
                            students_json=json.dumps(summary),
-                           exam_dates=sorted(all_dates, reverse=True),
-                           exam_date=current_date)
+                           exam_dates=sorted(all_dates, reverse=True))

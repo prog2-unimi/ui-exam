@@ -17,6 +17,21 @@ class ExamEvent:
     note: str | None
 
 
+@dataclass(frozen=True)
+class Metrics:
+    tests:   str   # 'SUCCESS' | 'FAILURE'
+    javadoc: str   # 'SUCCESS' | 'FAILURE'
+    cyclic:  str   # 'YES' | 'NO'
+    code:    int
+    docs:    int
+    file:    int
+    ccode:   int
+    cfile:   int
+    slot:    str   # 'YYMMDD-HHMM' or '' (the `date` column — booked oral slot)
+    upload:  str   # 'YYMMDD-HHMM' or ''
+    num:     int
+
+
 class AbsentCurrentExamEvent:
     """Enrolled in current exam but no source turned in — immutable."""
 
@@ -32,20 +47,41 @@ class AbsentCurrentExamEvent:
         raise AttributeError('No source turned in')
 
     @property
-    def note(self) -> str | None:
-        return None
+    def short_note(self) -> str:
+        return ''
 
-    @note.setter
-    def note(self, text: str) -> None:
+    @short_note.setter
+    def short_note(self, value: str) -> None:
+        raise AttributeError('No source turned in')
+
+    @property
+    def long_note(self) -> str:
+        return ''
+
+    @long_note.setter
+    def long_note(self, text: str) -> None:
         raise AttributeError('No source turned in')
 
 
 class LiveCurrentExamEvent:
     """Enrolled in current exam with source turned in — reads/writes live."""
 
-    def __init__(self, email: str, date: str) -> None:
+    def __init__(self, email: str, date: str, row: dict) -> None:
         self._email = email
         self.date   = date
+        self.metrics = Metrics(
+            tests=str(row.get('tests', '')),
+            javadoc=str(row.get('javadoc', '')),
+            cyclic=str(row.get('cyclic', '')),
+            code=int(row.get('code', 0) or 0),
+            docs=int(row.get('docs', 0) or 0),
+            file=int(row.get('file', 0) or 0),
+            ccode=int(row.get('ccode', 0) or 0),
+            cfile=int(row.get('cfile', 0) or 0),
+            slot=str(row.get('date', '')),
+            upload=str(row.get('upload', '')),
+            num=int(row.get('num', 0) or 0),
+        )
 
     @property
     def mark(self) -> str:
@@ -60,23 +96,31 @@ class LiveCurrentExamEvent:
 
     @mark.setter
     def mark(self, value: str) -> None:
-        path = _marks_path()
-        if not path.exists():
-            raise RuntimeError(f'marks.tsv not found at {path} — exam not yet prepared')
-        df = pd.read_csv(path, sep='\t', na_filter=False)
-        if self._email not in df['email'].values:
-            raise RuntimeError(f'{self._email} not in marks.tsv')
-        df.loc[df['email'] == self._email, 'mark'] = value
-        df.to_csv(path, sep='\t', index=False)
+        _update_marks_tsv(self._email, mark=value)
 
     @property
-    def note(self) -> str:
-        p = _note_path(self._email)
+    def short_note(self) -> str:
+        path = _marks_path()
+        if not path.exists():
+            return ''
+        df  = pd.read_csv(path, sep='\t', na_filter=False)
+        row = df[df['email'] == self._email]
+        if row.empty:
+            raise RuntimeError(f'{self._email} not in marks.tsv')
+        return str(row.iloc[0]['note'])
+
+    @short_note.setter
+    def short_note(self, value: str) -> None:
+        _update_marks_tsv(self._email, short_note=value)
+
+    @property
+    def long_note(self) -> str:
+        p = _long_note_path(self._email)
         return p.read_text() if p.exists() else ''
 
-    @note.setter
-    def note(self, text: str) -> None:
-        p       = _note_path(self._email)
+    @long_note.setter
+    def long_note(self, text: str) -> None:
+        p       = _long_note_path(self._email)
         cleaned = '\n'.join(l for l in text.splitlines() if not l.startswith('#')).strip()
         if cleaned:
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -127,10 +171,22 @@ def _marks_path() -> Path:
     return config.EVALS_DIR / exam_date() / 'marks.tsv'
 
 
-def _note_path(email: str) -> Path:
+def _long_note_path(email: str) -> Path:
     return config.EVALS_DIR / exam_date() / 'notes' / f'{email}.md'
 
 
+def _update_marks_tsv(email: str, *, mark: str | None = None, short_note: str | None = None) -> None:
+    path = _marks_path()
+    if not path.exists():
+        raise RuntimeError(f'marks.tsv not found at {path} — exam not yet prepared')
+    df = pd.read_csv(path, sep='\t', na_filter=False)
+    if email not in df['email'].values:
+        raise RuntimeError(f'{email} not in marks.tsv')
+    if mark is not None:
+        df.loc[df['email'] == email, 'mark'] = mark
+    if short_note is not None:
+        df.loc[df['email'] == email, 'note'] = short_note
+    df.to_csv(path, sep='\t', index=False)
 
 
 @cache
@@ -173,7 +229,7 @@ def all_students() -> dict[str, Student]:
             if email not in names:
                 names[email] = str(row['Nominativo studente']).strip()
 
-    # ── past notes (current-exam notes are read live) ─────────────────────────
+    # ── past notes (current-exam long notes are read live) ────────────────────
     notes: dict[str, dict[str, str]] = {}
     for note_file in config.EVALS_DIR.glob('*/notes/*.md'):
         date  = note_file.parent.parent.name
@@ -181,6 +237,14 @@ def all_students() -> dict[str, Student]:
         if date == current_date:
             continue
         notes.setdefault(email, {})[date] = note_file.read_text()
+
+    # ── current marks.tsv → determines who has source ─────────────────────────
+    current_rows: dict[str, dict] = {}
+    marks_path = _marks_path()
+    if marks_path.exists():
+        df = pd.read_csv(marks_path, sep='\t', na_filter=False)
+        for _, row in df.iterrows():
+            current_rows[str(row['email'])] = row.to_dict()
 
     # ── assemble ──────────────────────────────────────────────────────────────
     all_emails = enrollments.keys() | results.keys() | notes.keys()
@@ -202,10 +266,10 @@ def all_students() -> dict[str, Student]:
 
         current = None
         if current_date in enrollments.get(email, set()):
-            src_base = config.STUDENT_BASE / email / 'source'
-            src_java = src_base / 'src' / 'main' / 'java'
-            has_src  = (src_java if src_java.exists() else src_base).exists()
-            current  = LiveCurrentExamEvent(email, current_date) if has_src else AbsentCurrentExamEvent(current_date)
+            if email in current_rows:
+                current = LiveCurrentExamEvent(email, current_date, current_rows[email])
+            else:
+                current = AbsentCurrentExamEvent(current_date)
 
         students[email] = Student(
             email=email,

@@ -3,7 +3,7 @@
 
 import logging
 
-from flask import Flask
+from flask import Flask, redirect, url_for
 
 _log = logging.getLogger(__name__)
 
@@ -21,11 +21,17 @@ def create_app():
     _configure_logging()
     app = Flask(__name__)
 
-    from examui.views.oral import bp as oral_bp
-    from examui.views.history import bp as history_bp
+    from examui.views.student  import bp as student_bp
+    from examui.views.history  import bp as history_bp
+    from examui.views.schedule import bp as schedule_bp
 
-    app.register_blueprint(oral_bp)
+    app.register_blueprint(student_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(schedule_bp)
+
+    @app.get('/')
+    def index():
+        return redirect(url_for('history.list_students'))
 
     from pathlib import Path
     from examui.models.history import all_students, LiveCurrentExamEvent

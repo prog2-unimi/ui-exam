@@ -1,0 +1,52 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026  Massimo Santini
+#
+# Intended as the command= entry in ~/.ssh/authorized_keys:
+#
+#   command="/path/to/ssh_start.sh",no-pty,no-agent-forwarding,\
+#   no-X11-forwarding,permitopen="localhost:8765" ssh-rsa AAAA...
+#
+# The server starts when the tunnel is established and is killed when
+# the SSH connection closes.
+
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+APPDIR="$(dirname "$(realpath "$0")")"/..
+PIDFILE="$APPDIR/.gunicorn.pid"
+LOGFILE="/tmp/examui.log"
+
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOGFILE"; }
+log "--- session start (SSH_CLIENT=${SSH_CLIENT:-unknown}) ---"
+
+if [ ! -f "$APPDIR/.envrc" ]; then log "ERROR: .envrc not found"; exit 1; fi
+source "$APPDIR/.envrc"
+
+if [ -f "$PIDFILE" ]; then
+    OLD_PID=$(cat "$PIDFILE")
+    if kill "$OLD_PID" 2>/dev/null; then log "killed leftover gunicorn pid=$OLD_PID"
+    else log "stale pidfile (pid=$OLD_PID already gone)"; fi
+    rm -f "$PIDFILE"
+fi
+
+cd "$APPDIR"
+log "starting gunicorn..."
+HISTORY_DIR="$HISTORY_DIR" EVALS_DIR="$EVALS_DIR" STUDENT_BASE="$STUDENT_BASE" \
+    uv run gunicorn --workers=1 --bind=127.0.0.1:8765 --pid "$PIDFILE" 'examui:create_app()' \
+    >> "$LOGFILE" 2>&1 &
+
+for i in $(seq 1 10); do [ -f "$PIDFILE" ] && break; sleep 0.5; done
+GUNICORN_PID=$(cat "$PIDFILE" 2>/dev/null)
+log "gunicorn started pid=$GUNICORN_PID"
+
+cleanup() {
+    log "cleanup: killing gunicorn pid=$GUNICORN_PID"
+    kill "$GUNICORN_PID" 2>/dev/null || true
+    rm -f "$PIDFILE"
+    log "--- session end ---"
+}
+trap cleanup EXIT
+
+# Block until SSH disconnects. Foreground cat inherits the shell's real stdin
+# (the SSH channel), so it sees EOF on disconnect without any fd tricks.
+cat > /dev/null

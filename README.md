@@ -18,11 +18,37 @@ Given a student's submitted source code and generated Javadoc, it provides:
 Copy `.envrc.example` to `.envrc`, fill in the paths, then:
 
 ```shell
-direnv allow   # or source .envrc manually
-./run.sh
+direnv allow   # or: source .envrc
+./bin/debug
 ```
 
-The app listens on `127.0.0.1:8765' (such address can be reached from via an SSH tunnel).
+The app listens on `127.0.0.1:8765`.
+
+### Remote access from a tablet (Termux)
+
+Add the following to `~/.ssh/authorized_keys` on the exam host, pointing at the
+absolute path of `bin/server`:
+
+```
+command="/path/to/bin/server",no-pty,no-agent-forwarding,no-X11-forwarding,permitopen="localhost:8765" ssh-ed25519 AAAA...
+```
+
+Add the client-side variables to `.envrc` (or a separate `.envrc` on the tablet):
+
+```shell
+EXAMUI_HOST=svm        # SSH host alias from ~/.ssh/config
+EXAMUI_KEY=~/.ssh/id_examui
+EXAMUI_PORT=8765
+```
+
+Then on the tablet:
+
+```shell
+./bin/client
+```
+
+This opens the SSH tunnel, waits for gunicorn to be reachable, launches the
+browser, and tears everything down on Ctrl-C.
 
 ## License
 

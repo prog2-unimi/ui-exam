@@ -1,0 +1,41 @@
+  #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026  Massimo Santini
+#
+# Termux client script: opens SSH tunnel, launches browser, cleans up on exit.
+# Requires: openssh, termux-api (pkg install openssh termux-api)
+#
+# Configuration via .envrc in the same directory as this script:
+#   EXAMUI_HOST=svm
+#   EXAMUI_KEY=~/.ssh/id_examui
+#   EXAMUI_PORT=8765
+
+BINDIR="$(dirname "$(realpath "$0")")"
+if [ ! -f "$BINDIR/.envrc" ]; then echo "ERROR: $BINDIR/.envrc not found" >&2; exit 1; fi
+source "$BINDIR/../.envrc"
+
+: "${EXAMUI_HOST:?EXAMUI_HOST not set in .envrc}"
+: "${EXAMUI_KEY:?EXAMUI_KEY not set in .envrc}"
+: "${EXAMUI_PORT:?EXAMUI_PORT not set in .envrc}"
+
+unset SSH_AUTH_SOCK SSH_AGENT_PID
+ssh -i "$EXAMUI_KEY" -o IdentitiesOnly=yes \
+    -L "${EXAMUI_PORT}:localhost:${EXAMUI_PORT}" "$EXAMUI_HOST" < <(sleep infinity) 2>&1 &
+SSH_PID=$!
+
+trap "kill $SSH_PID 2>/dev/null; wait $SSH_PID 2>/dev/null" EXIT INT TERM
+
+echo "Connecting…"
+for i in $(seq 1 15); do
+    if nc -z localhost "$EXAMUI_PORT" 2>/dev/null; then break; fi
+    if ! kill -0 "$SSH_PID" 2>/dev/null; then
+        echo "SSH process died — check key/host config" >&2
+        exit 1
+    fi
+    sleep 1
+done
+
+termux-open-url "http://localhost:${EXAMUI_PORT}"
+
+echo "Tunnel open — press Ctrl-C to disconnect"
+wait "$SSH_PID"

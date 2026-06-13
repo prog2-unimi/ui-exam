@@ -18,6 +18,7 @@ def student(email):
                            matricola=s.matricola if s else '',
                            events=s.events if s else [],
                            current=s.current if s else None,
+                           has_source=isinstance(s.current, LiveCurrentExamEvent) if s else False,
                            slot_minutes=config.SLOT_MINUTES)
 
 

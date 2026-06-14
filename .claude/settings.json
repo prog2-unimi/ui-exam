@@ -3,7 +3,13 @@
   "permissions": {
     "allow": [
       "Read(**)",
-      "Write(**)"
+      "Write(**)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git status:*)",
+      "Bash(git branch:*)",
+      "Bash(git blame:*)"
     ]
   }
 }

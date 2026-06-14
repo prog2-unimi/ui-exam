@@ -7,41 +7,34 @@
 <link href="{{ url_for('static', filename='student.css') }}" rel="stylesheet">
 {% endblock %}
 
+{% block header %}
+<h5 class="mb-0 flex-shrink-0">{{ name or email }}</h5>
+<span class="text-muted flex-shrink-0">{{ email }}</span>
+<span class="text-muted small flex-shrink-0">{{ matricola }}</span>
+{% if current %}
+<div class="flex-grow-1 d-flex align-items-center gap-2">
+  <button id="timer-btn" class="btn btn-sm btn-outline-secondary flex-shrink-0">Start</button>
+  <span id="timer-display" class="font-monospace small text-muted flex-shrink-0" style="min-width:7rem;">0:00 / {{ slot_minutes }}:00</span>
+  <div class="flex-grow-1">
+    <div class="progress" style="height:6px;">
+      <div id="timer-bar" class="progress-bar bg-success" style="width:0%;"></div>
+    </div>
+  </div>
+  <span id="timer-badge" class="badge d-none flex-shrink-0"></span>
+  <label class="d-flex align-items-center gap-1 small text-muted mb-0 flex-shrink-0">
+    <input id="slot-input" type="number" min="5" max="120" value="{{ slot_minutes }}"
+           class="form-control form-control-sm text-center" style="width:3.5rem;">
+    min
+  </label>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 {% set cm = current.mark.provisional if current else none %}
-<div class="d-flex flex-column px-3 pt-3" style="height: 100vh;">
+<div class="d-flex flex-column h-100 px-3 pt-2 pb-2">
 
-  {# ── Header with timer ──────────────────────────────────────────────────── #}
-  <div class="d-flex align-items-center gap-2 mb-2">
-    <a href="{{ url_for('history.list_students') }}" class="btn btn-sm btn-outline-secondary flex-shrink-0">
-      <i class="bi bi-people"></i> History
-    </a>
-    <a href="{{ url_for('schedule.schedule') }}" class="btn btn-sm btn-outline-secondary flex-shrink-0">
-      <i class="bi bi-calendar3"></i> Schedule
-    </a>
-    <h5 class="mb-0 flex-shrink-0">{{ name or email }}</h5>
-    <span class="text-muted flex-shrink-0">{{ email }}</span>
-    <span class="text-muted small flex-shrink-0">{{ matricola }}</span>
-    {% if current %}
-    <div class="flex-grow-1 d-flex align-items-center gap-2">
-      <button id="timer-btn" class="btn btn-sm btn-outline-secondary flex-shrink-0">Start</button>
-      <span id="timer-display" class="font-monospace small text-muted flex-shrink-0" style="min-width:7rem;">0:00 / {{ slot_minutes }}:00</span>
-      <div class="flex-grow-1">
-        <div class="progress" style="height:6px;">
-          <div id="timer-bar" class="progress-bar bg-success" style="width:0%;"></div>
-        </div>
-      </div>
-      <span id="timer-badge" class="badge d-none flex-shrink-0"></span>
-      <label class="d-flex align-items-center gap-1 small text-muted mb-0 flex-shrink-0">
-        <input id="slot-input" type="number" min="5" max="120" value="{{ slot_minutes }}"
-               class="form-control form-control-sm text-center" style="width:3.5rem;">
-        min
-      </label>
-    </div>
-    {% endif %}
-  </div>
-
-  <ul class="nav nav-tabs" role="tablist">
+  <ul class="nav nav-tabs flex-shrink-0" role="tablist">
     <li class="nav-item">
       <button id="history-tab-btn" class="nav-link {% if not current %}active{% endif %}"
               data-bs-toggle="tab" data-bs-target="#tab-history" type="button">
@@ -74,7 +67,7 @@
     </li>
   </ul>
 
-  <div class="tab-content flex-grow-1 border border-top-0 rounded-bottom overflow-hidden">
+  <div class="tab-content flex-grow-1 border border-top-0 rounded-bottom overflow-hidden" style="min-height: 0;">
 
     {# ── History ───────────────────────────────────────────────────────────── #}
     <div class="tab-pane fade {% if not current %}show active{% endif %} h-100 overflow-auto p-2" id="tab-history">

@@ -11,6 +11,33 @@
 </head>
 <body class="d-flex flex-column min-vh-100">
 
+  <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom flex-shrink-0">
+    <div class="d-flex gap-1 border rounded p-1 flex-shrink-0">
+      {% if request.endpoint == 'history.list_students' %}
+      <button class="btn btn-sm btn-outline-secondary" disabled>
+        <i class="bi bi-people"></i> History
+      </button>
+      {% else %}
+      <a href="{{ url_for('history.list_students') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-people"></i> History
+      </a>
+      {% endif %}
+      {% if request.endpoint == 'schedule.schedule' %}
+      <button class="btn btn-sm btn-outline-secondary" disabled>
+        <i class="bi bi-calendar3"></i> Schedule
+      </button>
+      {% else %}
+      <a href="{{ url_for('schedule.schedule') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-calendar3"></i> Schedule
+      </a>
+      {% endif %}
+      <a id="active-btn" href="#" class="btn btn-sm btn-outline-danger d-none">
+        <i class="bi bi-stopwatch"></i> Active
+      </a>
+    </div>
+    {% block header %}{% endblock %}
+  </div>
+
   <main class="flex-grow-1">
     {% block content %}{% endblock %}
   </main>

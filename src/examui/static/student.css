@@ -1,3 +1,6 @@
+body        { height: 100dvh; overflow: hidden; }
+body > main { min-height: 0; overflow: hidden; }
+
 .source-file:hover  { background: var(--bs-primary-bg-subtle); cursor: pointer; }
 .source-file.active { background: var(--bs-primary-bg-subtle); font-weight: 500; }
 :root { --src-font-size: 13px; }

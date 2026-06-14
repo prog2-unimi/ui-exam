@@ -101,7 +101,7 @@ Pre-built Javadoc HTML tree, served as static files by the `/api/<email>/javadoc
 
 ## Data model
 
-Split across two modules:
+Split across three modules:
 
 ### `src/examui/models/events.py` — pure frozen data classes (no I/O)
 
@@ -201,9 +201,30 @@ Reads all iscrizioni XLS, all verbali XLS, past notes, and current marks.tsv onc
 
 ---
 
-## Source analysis model (`src/examui/models/source.py`)
+## Java language analysis (`src/examui/lang/`)
 
-All public analysis functions are `@cache`-decorated — computed once per process, warmed up at startup for all `UnderEvaluationEvent` students.
+No I/O, no Flask, no config dependency — importable standalone for unit tests.
+
+### `lang/parsing.py`
+
+Uses `tree-sitter` (via `tree_sitter_java`). Public API:
+
+- `symbols(text)` → `list[dict]` — symbol list for the source navigator. Each entry: `{kind, name, line, anchor}`. `anchor` is `'name(FQN1,FQN2)'` for methods/constructors, `''` for type declarations.
+- `class_uses(text)` → `(package, simple_name, uses, sym_count, kind)` — dependency information. `uses` is `{'member': set[FQN], 'parameter': set[FQN], 'return': set[FQN], 'inherits': set[FQN], 'bound': set[FQN], 'local': set[FQN], 'instantiates': set[FQN]}`. `kind` is one of `'class'`, `'abstract'`, `'interface'`, `'enum'`, `'record'`.
+
+### `lang/graph.py`
+
+Pure graph algorithms and Java class triviality classification. Public API:
+
+- `is_trivial_package(rel_parts, trivial_packages)` — true if the package path matches any entry in `trivial_packages`.
+- `is_trivial(stem, uses)` — true if the class name ends with `Exception`/`Error`/`Client`, or directly inherits from a throwable.
+- `close_trivial(parsed)` — propagates triviality transitively through inheritance chains (mutates in place).
+- `tarjan_sccs(nodes, adj)` → `list[list[str]]` — Tarjan's SCC algorithm; returns SCCs in topological order (foundations first).
+- `transitive_reduction(nodes, adj, sccs)` → `dict[str, list[str]]` — removes inter-SCC edges made redundant by transitivity; intra-SCC edges are kept as-is.
+
+## Source analysis (`src/examui/models/source.py`)
+
+Filesystem I/O layer for student source code and Javadoc. Orchestrates `lang.parsing` and `lang.graph`; applies Pygments highlighting and Graphviz rendering. All public functions are `@cache`-decorated — computed once per process, warmed up at startup for all `UnderEvaluationEvent` students.
 
 - `tree(email)` — directory tree as JSON-serialisable list.
 - `all_symbols(email)` — flat list of all symbol dicts across non-trivial files.
@@ -220,13 +241,6 @@ All public analysis functions are `@cache`-decorated — computed once per proce
 3. The file is in a package listed in `config.TRIVIAL_PACKAGES` (default: `client`, `clients`, `util`, `utils`).
 
 Trivial propagation is transitive: if a superclass is trivial, all subclasses are also trivial.
-
-## Source parsing (`src/examui/parsing.py`)
-
-Uses `tree-sitter` (via `tree_sitter_java`) — no dependency on Flask or config. Public API:
-
-- `symbols(text)` → `list[dict]` — symbol list for the source navigator. Each entry: `{kind, name, line, anchor}`. `anchor` is `'name(FQN1,FQN2)'` for methods/constructors, `''` for type declarations.
-- `class_uses(text)` → `(package, simple_name, uses, sym_count, kind)` — dependency information. `uses` is `{'member': set[FQN], 'parameter': set[FQN], 'return': set[FQN], 'inherits': set[FQN], 'bound': set[FQN], 'local': set[FQN], 'instantiates': set[FQN]}`. `kind` is one of `'class'`, `'abstract'`, `'interface'`, `'enum'`, `'record'`.
 
 ---
 
@@ -313,7 +327,7 @@ DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. 
 
 - `@cache` used consistently throughout — never `@lru_cache` with explicit size.
 - `all_students()`, `exam_date()`: cached for process lifetime.
-- `tree`, `all_symbols`, `file`, `deps` in `source.py`: cached per email (or email+relpath).
+- `tree`, `all_symbols`, `file`, `deps` in `models/source.py`: cached per email (or email+relpath).
 - Live I/O (`provisional`, `annotation`, `note` on `UnderEvaluationMark`) intentionally **not** cached.
 - Single-worker gunicorn is a hard requirement.
 

@@ -16,8 +16,8 @@ from __future__ import annotations
 import tree_sitter_java as _tsjava
 from tree_sitter import Language, Parser
 
-_JAVA_LANG = Language(_tsjava.language())
-_PARSER = Parser(_JAVA_LANG)
+_LANG = Language(_tsjava.language())
+_PARSER = Parser(_LANG)
 
 _DECL_NODES = frozenset(
   {

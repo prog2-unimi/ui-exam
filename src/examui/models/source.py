@@ -11,13 +11,13 @@ from pathlib import Path
 _log = logging.getLogger(__name__)
 
 import graphviz as _graphviz
-import pandas as pd
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JavaLexer
 
 from examui import config
-from examui import parsing
+from examui.lang import graph as _graph
+from examui.lang import parsing
 
 
 # ── javadoc ───────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ def all_symbols(email: str) -> list[dict]:
     rel = str(f.relative_to(root))
     if rel in trivial_paths:
       continue
-    if _is_trivial_package(f.relative_to(root).parts[:-1]):
+    if _graph.is_trivial_package(f.relative_to(root).parts[:-1], config.TRIVIAL_PACKAGES):
       continue
     try:
       text = f.read_text(errors='replace')
@@ -78,7 +78,7 @@ def _walk(path: Path, root: Path, trivial_paths: set[str], parent_trivial: bool 
   for entry in entries:
     rel = str(entry.relative_to(root))
     if entry.is_dir():
-      trivial = parent_trivial or _is_trivial_package(entry.relative_to(root).parts)
+      trivial = parent_trivial or _graph.is_trivial_package(entry.relative_to(root).parts, config.TRIVIAL_PACKAGES)
       children = _walk(entry, root, trivial_paths, trivial)
       if children:
         items.append(
@@ -127,34 +127,6 @@ def _split_html_lines(html: str) -> list[str]:
   return result
 
 
-def _is_trivial_package(rel_parts: tuple[str, ...]) -> bool:
-  pkg = '.'.join(rel_parts)
-  return any(pkg == tp or pkg.startswith(tp + '.') for tp in config.TRIVIAL_PACKAGES)
-
-
-def _is_trivial(stem: str, uses: dict[str, set[str]]) -> bool:
-  if stem.endswith(('Exception', 'Error', 'Client')):
-    return True
-  return any(
-    fqn.rsplit('.', 1)[-1].endswith(('Exception', 'Error', 'Throwable'))
-    for fqn in uses.get('inherits', set())
-  )
-
-
-def _close_trivial(parsed: dict[str, dict]) -> None:
-  """Propagate trivial flag transitively: if a superclass is trivial, the subclass is too."""
-  changed = True
-  while changed:
-    changed = False
-    for info in parsed.values():
-      if not info['trivial']:
-        for inh in info['uses'].get('inherits', set()):
-          if parsed.get(inh, {}).get('trivial', False):
-            info['trivial'] = True
-            changed = True
-            break
-
-
 @cache
 def _trivial_rel_paths(root: Path) -> set[str]:
   """Return root-relative paths of all trivial .java files (by name or inheritance closure)."""
@@ -162,7 +134,7 @@ def _trivial_rel_paths(root: Path) -> set[str]:
   for f in root.rglob('*.java'):
     if f.stem == 'package-info':
       continue
-    if _is_trivial_package(f.relative_to(root).parts[:-1]):
+    if _graph.is_trivial_package(f.relative_to(root).parts[:-1], config.TRIVIAL_PACKAGES):
       continue
     try:
       text = f.read_text(errors='replace')
@@ -173,11 +145,11 @@ def _trivial_rel_paths(root: Path) -> set[str]:
       parsed[fqn] = {
         'rel': str(f.relative_to(root)),
         'uses': uses,
-        'trivial': _is_trivial(simple, uses),
+        'trivial': _graph.is_trivial(simple, uses),
       }
     except Exception:
       pass
-  _close_trivial(parsed)
+  _graph.close_trivial(parsed)
   return {info['rel'] for info in parsed.values() if info['trivial']}
 
 
@@ -218,89 +190,6 @@ def file(email: str, relpath: str) -> dict | None:
   }
 
 
-def _transitive_reduction(
-  nodes: list[str], adj: dict[str, list[str]], sccs: list[list[str]]
-) -> dict[str, list[str]]:
-  """Remove inter-SCC edges made redundant by transitivity; intra-SCC edges are kept as-is."""
-  node_to_scc: dict[str, int] = {}
-  for i, scc in enumerate(sccs):
-    for n in scc:
-      node_to_scc[n] = i
-
-  n_sccs = len(sccs)
-
-  # Build condensation: cond[i] = set of SCC indices directly reachable from SCC i
-  # SCCs from Tarjan are in topological order (foundations first = lower indices),
-  # so all edges in the condensation go from higher to lower indices.
-  cond: dict[int, set[int]] = {i: set() for i in range(n_sccs)}
-  for u in nodes:
-    for v in adj.get(u, []):
-      si, sj = node_to_scc[u], node_to_scc[v]
-      if si != sj:
-        cond[si].add(sj)
-
-  # Full reachability in condensation — process ascending (successors always lower-indexed)
-  reach: dict[int, set[int]] = {i: set() for i in range(n_sccs)}
-  for i in range(n_sccs):
-    for j in cond[i]:
-      reach[i].add(j)
-      reach[i].update(reach[j])
-
-  # Keep condensation edge (i→j) only if j is not reachable via any other direct successor
-  cond_keep: set[tuple[int, int]] = set()
-  for i in range(n_sccs):
-    for j in cond[i]:
-      if not any(j in reach[k] for k in cond[i] if k != j):
-        cond_keep.add((i, j))
-
-  # Rebuild node-level adjacency
-  reduced: dict[str, list[str]] = {u: [] for u in nodes}
-  for u in nodes:
-    for v in adj.get(u, []):
-      si, sj = node_to_scc[u], node_to_scc[v]
-      if si == sj or (si, sj) in cond_keep:
-        reduced[u].append(v)
-  return reduced
-
-
-def _tarjan_sccs(nodes: list[str], adj: dict[str, list[str]]) -> list[list[str]]:
-  """Tarjan's SCC algorithm. Returns SCCs in topological order (foundations first)."""
-  index_counter = [0]
-  stack: list[str] = []
-  lowlink: dict[str, int] = {}
-  index: dict[str, int] = {}
-  on_stack: dict[str, bool] = {}
-  sccs: list[list[str]] = []
-
-  def _visit(v: str) -> None:
-    index[v] = lowlink[v] = index_counter[0]
-    index_counter[0] += 1
-    stack.append(v)
-    on_stack[v] = True
-    for w in adj.get(v, []):
-      if w not in index:
-        _visit(w)
-        lowlink[v] = min(lowlink[v], lowlink[w])
-      elif on_stack.get(w):
-        lowlink[v] = min(lowlink[v], index[w])
-    if lowlink[v] == index[v]:
-      scc: list[str] = []
-      while True:
-        w = stack.pop()
-        on_stack[w] = False
-        scc.append(w)
-        if w == v:
-          break
-      sccs.append(scc)
-
-  for v in nodes:
-    if v not in index:
-      _visit(v)
-
-  # Tarjan naturally emits sink SCCs first (foundations-first) — no reversal needed
-  return sccs
-
-
 @cache
 def deps(email: str) -> dict:
   root = _root(email)
@@ -311,7 +200,7 @@ def deps(email: str) -> dict:
     f
     for f in sorted(root.rglob('*.java'))
     if f.stem != 'package-info'
-    and not _is_trivial_package(f.relative_to(root).parts[:-1])
+    and not _graph.is_trivial_package(f.relative_to(root).parts[:-1], config.TRIVIAL_PACKAGES)
   ]
 
   # Pass 1: parse all files
@@ -328,11 +217,11 @@ def deps(email: str) -> dict:
       'uses': uses,
       'sym_count': sym_count,
       'kind': kind,
-      'trivial': _is_trivial(simple, uses),
+      'trivial': _graph.is_trivial(simple, uses),
     }
 
   # Pass 2: propagate trivial flag through inheritance chains
-  _close_trivial(all_parsed)
+  _graph.close_trivial(all_parsed)
 
   class_info = {fqn: info for fqn, info in all_parsed.items() if not info['trivial']}
   known = set(class_info)
@@ -350,11 +239,8 @@ def deps(email: str) -> dict:
   # Out-degree per node (original graph, used for within-SCC ordering)
   out_degree = {fqn: len(neighbours) for fqn, neighbours in adj.items()}
 
-  # SCC + topological sort
-  sccs = _tarjan_sccs(list(known), adj)
-
-  # Transitive reduction: remove edges made redundant by a longer path
-  adj_reduced = _transitive_reduction(list(known), adj, sccs)
+  sccs = _graph.tarjan_sccs(list(known), adj)
+  adj_reduced = _graph.transitive_reduction(list(known), adj, sccs)
 
   # Within each SCC sort ascending by (out_degree, sym_count) — simplest first
   for scc in sccs:

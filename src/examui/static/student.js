@@ -287,6 +287,9 @@ async function loadSourceFile(relpath, clickedEl) {
   _activeFile = relpath;
   document.querySelectorAll('.source-file').forEach(d => d.classList.remove('active'));
   if (clickedEl) clickedEl.classList.add('active');
+  const treeEntry = document.querySelector(`#source-tree .source-file[data-path="${relpath}"]`);
+  if (treeEntry) treeEntry.classList.add('active');
+  _highlightDepsNode(relpath);
 
   document.getElementById('src-filename').textContent = relpath;
   document.getElementById('source-code').innerHTML =
@@ -369,6 +372,21 @@ document.querySelector('[data-bs-target="#tab-source"]')
   });
 
 // ── Dependency graph ─────────────────────────────────────────────────────────
+let _depsPathToNid = {};   // relpath → nid, populated after deps loads
+
+function _highlightDepsNode(relpath) {
+  // Clear previous highlight
+  document.querySelectorAll('#deps-container .node polygon, #deps-container .node ellipse')
+    .forEach(el => el.setAttribute('fill', 'white'));
+  if (!relpath) return;
+  const nid = _depsPathToNid[relpath];
+  if (!nid) return;
+  const g = document.getElementById(nid);
+  if (!g) return;
+  const shape = g.querySelector('polygon, ellipse');
+  if (shape) shape.setAttribute('fill', '#ffffcc');
+}
+
 async function loadDepsGraph() {
   const container = document.getElementById('deps-container');
   const loading   = document.getElementById('deps-loading');
@@ -384,6 +402,7 @@ async function loadDepsGraph() {
   }
 
   container.innerHTML = data.svg;
+  container.style.overflow = 'hidden';
 
   const svgEl = container.querySelector('svg');
   if (svgEl) {
@@ -397,9 +416,13 @@ async function loadDepsGraph() {
       svgEl.setAttribute('width',  Math.round(vb.width  * scale));
       svgEl.setAttribute('height', Math.round(vb.height * scale));
     }
+    const pz = panzoom(svgEl, { maxZoom: 10, minZoom: 0.1 });
+    svgEl.addEventListener('dblclick', () => pz.reset());
   }
 
+  _depsPathToNid = {};
   Object.entries(data.paths).forEach(([nid, relpath]) => {
+    _depsPathToNid[relpath] = nid;
     const el = document.getElementById(nid);
     if (!el) return;
     el.style.cursor = 'pointer';
@@ -410,6 +433,8 @@ async function loadDepsGraph() {
       ).show();
     });
   });
+
+  _highlightDepsNode(_activeFile);
 }
 
 document.getElementById('deps-tab-btn')

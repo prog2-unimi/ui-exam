@@ -10,3 +10,7 @@ HISTORY_DIR = Path(environ['HISTORY_DIR'])
 EVALS_DIR = Path(environ['EVALS_DIR'])
 STUDENT_BASE = Path(environ['STUDENT_BASE'])
 SLOT_MINUTES = int(environ.get('SLOT_MINUTES', 30))
+
+# Directories excluded from symbol index and dependency graph.
+# Add exam-specific supporting packages here.
+TRIVIAL_PACKAGES: frozenset[str] = frozenset({'client', 'clients', 'util', 'utils'})

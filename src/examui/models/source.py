@@ -58,7 +58,7 @@ def all_symbols(email: str) -> list[dict]:
     rel = str(f.relative_to(root))
     if rel in trivial_paths:
       continue
-    if any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1]):
+    if _is_trivial_package(f.relative_to(root).parts[:-1]):
       continue
     try:
       text = f.read_text(errors='replace')
@@ -78,7 +78,7 @@ def _walk(path: Path, root: Path, trivial_paths: set[str], parent_trivial: bool 
   for entry in entries:
     rel = str(entry.relative_to(root))
     if entry.is_dir():
-      trivial = parent_trivial or bool(_TRIVIAL_DIR_RE.match(entry.name))
+      trivial = parent_trivial or _is_trivial_package(entry.relative_to(root).parts)
       children = _walk(entry, root, trivial_paths, trivial)
       if children:
         items.append(
@@ -127,16 +127,17 @@ def _split_html_lines(html: str) -> list[str]:
   return result
 
 
-_TRIVIAL_STEM_RE = re.compile(r'(?:Exception|Error|Client)$')
-_TRIVIAL_INHERITS_RE = re.compile(r'(?:Exception|Error|Throwable)$')
-_TRIVIAL_DIR_RE = re.compile(r'^clients?$', re.IGNORECASE)
+def _is_trivial_package(rel_parts: tuple[str, ...]) -> bool:
+  pkg = '.'.join(rel_parts)
+  return any(pkg == tp or pkg.startswith(tp + '.') for tp in config.TRIVIAL_PACKAGES)
 
 
 def _is_trivial(stem: str, uses: dict[str, set[str]]) -> bool:
-  if _TRIVIAL_STEM_RE.search(stem):
+  if stem.endswith(('Exception', 'Error', 'Client')):
     return True
   return any(
-    _TRIVIAL_INHERITS_RE.search(fqn.rsplit('.', 1)[-1]) for fqn in uses.get('inherits', set())
+    fqn.rsplit('.', 1)[-1].endswith(('Exception', 'Error', 'Throwable'))
+    for fqn in uses.get('inherits', set())
   )
 
 
@@ -161,7 +162,7 @@ def _trivial_rel_paths(root: Path) -> set[str]:
   for f in root.rglob('*.java'):
     if f.stem == 'package-info':
       continue
-    if any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1]):
+    if _is_trivial_package(f.relative_to(root).parts[:-1]):
       continue
     try:
       text = f.read_text(errors='replace')
@@ -310,7 +311,7 @@ def deps(email: str) -> dict:
     f
     for f in sorted(root.rglob('*.java'))
     if f.stem != 'package-info'
-    and not any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1])
+    and not _is_trivial_package(f.relative_to(root).parts[:-1])
   ]
 
   # Pass 1: parse all files

@@ -205,6 +205,21 @@ Reads all iscrizioni XLS, all verbali XLS, past notes, and current marks.tsv onc
 
 No I/O, no Flask, no config dependency — importable standalone for unit tests.
 
+### Tests
+
+Tests live in `tests/lang/`. Run with:
+
+```bash
+uv run pytest tests/
+```
+
+`pytest` is in `[dependency-groups] dev` in `pyproject.toml` (no extra install needed with `uv`).
+
+#### Known quirks (discovered while writing tests)
+
+- **Primitive types not in `uses`**: `_collect_type_refs` only visits `type_identifier` nodes. Primitive types (`int`, `double`, etc.) are represented by `integral_type`/`floating_point_type` nodes in tree-sitter-java and are therefore invisible to `class_uses` — they never appear in any `uses` set. Use reference types in tests that need to assert on parameter/return/local uses.
+- **Abstract class detection broken**: `child_by_field_name('modifiers')` returns `None` for `class_declaration` in the installed tree-sitter-java version, so `class_uses` always returns `kind='class'` even for `abstract class` declarations. The `'abstract'` kind is effectively dead code until this is fixed upstream or the parsing is reworked.
+
 ### `lang/parsing.py`
 
 Uses `tree-sitter` (via `tree_sitter_java`). Public API:

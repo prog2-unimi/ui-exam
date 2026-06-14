@@ -90,7 +90,6 @@ class UnderEvaluationEvent:
     self.mark = UnderEvaluationMark(email)
 
 
-
 @cache
 def exam_date() -> str:
   """Date of the most recent exam, derived from the latest iscrizioni XLS stem (YYMMDD)."""

@@ -8,8 +8,6 @@ import re
 from functools import cache
 from pathlib import Path
 
-_log = logging.getLogger(__name__)
-
 import graphviz as _graphviz
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
@@ -18,6 +16,8 @@ from pygments.lexers import JavaLexer
 from examui import config
 from examui.lang import graph as _graph
 from examui.lang import parsing
+
+_log = logging.getLogger(__name__)
 
 
 # ── javadoc ───────────────────────────────────────────────────────────────────

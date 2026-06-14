@@ -47,7 +47,7 @@ class UnderEvaluationMark:
 
   def _write_md(self, text: str) -> None:
     p = self._note_path()
-    cleaned = '\n'.join(l for l in text.splitlines() if not l.startswith('#')).strip()
+    cleaned = '\n'.join(line for line in text.splitlines() if not line.startswith('#')).strip()
     if cleaned:
       p.parent.mkdir(parents=True, exist_ok=True)
       p.write_text(cleaned)

@@ -5,7 +5,6 @@ import dataclasses
 from datetime import datetime
 
 from flask import Blueprint, render_template
-from examui.models.events import ExamEvent
 from examui.models.store import all_students, exam_date, UnderEvaluationEvent
 
 bp = Blueprint('history', __name__, url_prefix='')

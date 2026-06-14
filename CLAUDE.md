@@ -13,7 +13,7 @@ source .envrc   # or: direnv allow
 ./bin/debug
 ```
 
-Runs gunicorn with `--workers=1 --reload`. Expects `HISTORY_DIR`, `EVALS_DIR`, `STUDENT_BASE` in the environment (see `.envrc.example`). `SLOT_MINUTES` defaults to 30.
+Runs gunicorn with `--workers=1 --reload`. Expects `HISTORY_DIR`, `EVALS_DIR`, `STUDENT_BASE` in the environment (see `.envrc.example`). `SLOT_MINUTES` defaults to 30. `TODAY` defaults to today's date (`YYMMDD`); override to pin which day's oral slots are shown in the schedule view.
 
 ### Remote access via SSH tunnel
 
@@ -45,17 +45,14 @@ Single-worker gunicorn is a hard requirement (in-process `@cache`).
 
 One XLS per exam session, named `YYMMDD.xls` (the stem is the exam date used everywhere as a key). Each row is a student enrolled for that session. Columns: `Matricola`, `Email` (username only, no domain), `Cognome`, `Nome`.
 
-- A student present here but absent from verbali for that date → mark `AS` (assente).
+- A student enrolled here but absent from verbali for that date → `ExamEvent(date, mark=None)`.
 - The **most recent** XLS stem is `exam_date()` — the current/live exam.
 
 ### `HISTORY_DIR/verbali/*.xls`
 
 Registrar verbali. Each row is a student who sat an exam and got a result. Columns include `Matricola`, `Voto` (grade), `Stato Esito` (outcome state), `Data appello` (date), `Descrizione insegnamento`. Only rows where `Descrizione insegnamento == 'PROGRAMMAZIONE II'` are used.
 
-Mark encoding from verbali: first two chars of `Voto` uppercased + first char of `Stato Esito`. Examples:
-- `19V` = 19 passed (verbale)
-- `19R` = 19 refused by student (tilde ~)
-- `REV` / `RIV` etc. = rejected/withdrawn
+Mark encoding from verbali: handled by `Mark.from_verbale(voto, stato)`. `RE*` → `respinto`, `RI*` → `ritirato`, numeric voto + stato `V` → `passato`, numeric + other → `rifiutato`.
 
 ### `EVALS_DIR/<date>/marks.tsv`
 
@@ -79,17 +76,16 @@ TSV with one row per student who turned in source for the current exam. Pre-popu
 | `upload` | R/O | Submission timestamp (`YYMMDD-HHMM`) |
 | `rej`/`acc`/`other` | R/O | Ignored by the UI |
 
-**Source presence is determined by marks.tsv, not the filesystem.** If a student's email appears in marks.tsv, they are `LiveCurrentExamEvent`. If enrolled (in iscrizioni) but absent from marks.tsv, they are `AbsentCurrentExamEvent`. No filesystem check is needed.
+**Source presence is determined by marks.tsv, not the filesystem.** If a student's email appears in marks.tsv, they get an `UnderEvaluationEvent` as their first event. If enrolled (in iscrizioni) but absent from marks.tsv, they get `ExamEvent(date, mark=None)` for the current date. No filesystem check is needed.
 
-- Missing file → all enrolled students are `Absent` (exam not yet prepared).
-- File exists but student row is missing → `RuntimeError` (invariant violation).
+- Missing file → all enrolled students treated as absent for the current date (exam not yet prepared).
 - Only `mark` and `note` columns are ever modified by the UI; all other columns are read-only.
 
 ### `EVALS_DIR/<date>/notes/<email>.md`
 
 Long-form examiner notes for a student at a given exam date. Written live by the UI. Lines starting with `#` are stripped on save. Created/deleted as needed.
 
-Past exam notes are read once at startup (baked into `Student.events`). Current exam long notes are read/written live via `LiveCurrentExamEvent.long_note`.
+Past exam notes are read once at startup (baked into `Mark.note` on each `ExamEvent`). Current exam long notes are read/written live via `UnderEvaluationMark.note`.
 
 ### `STUDENT_BASE/<email>/source/`
 
@@ -109,14 +105,25 @@ Split across two modules:
 
 ### `src/examui/models/events.py` — pure frozen data classes (no I/O)
 
+#### `Mark`
+
+```python
+@dataclass(frozen=True)
+class Mark:
+    kind: Literal['respinto', 'ritirato', 'passato', 'rifiutato']
+    value: int | None = None   # numeric grade (passato/rifiutato only)
+    note:  str | None = None   # long-form oral note from that session
+```
+
+`Mark.from_verbale(voto, stato)` classmethod builds a `Mark` from raw verbale columns: `RE*` → `respinto`, `RI*` → `ritirato`, numeric + `V` → `passato`, numeric + other → `rifiutato`.
+
 #### `ExamEvent`
 
 ```python
 @dataclass(frozen=True)
 class ExamEvent:
     date: str        # 'YYMMDD'
-    mark: str        # 'AS' | '19V' | '19R' | 'REV' | 'RIV' | ...
-    note: str | None # long-form oral note from that session
+    mark: Mark | None  # None = absent (enrolled but no verbale entry)
 ```
 
 #### `Metrics` — read-only snapshot of marks.tsv static fields
@@ -138,47 +145,51 @@ class Metrics:
 
 Built once at `all_students()` time via `Metrics.from_row(row)`. Immutable for the process lifetime. `from_row` maps the raw TSV column names (`code`, `docs`, `file`, `ccode`, `cfile`, `tests`, `javadoc`, `cyclic`, `date`, `upload`) to the descriptive field names above, parsing booleans and datetimes.
 
-#### `AbsentCurrentExamEvent` — enrolled this exam, not in marks.tsv
-
-`mark` always `'AS'`. `short_note` and `long_note` return `''`. All setters raise `AttributeError`.
-
 #### `Student` — frozen dataclass
 
 ```python
 @dataclass(frozen=True)
 class Student:
     email: str; matricola: str; name: str
-    events: list[ExamEvent]   # past events, most-recent-first
-    current: AbsentCurrentExamEvent | LiveCurrentExamEvent | None
+    events: list[ExamEvent | UnderEvaluationEvent]   # most-recent-first
 ```
 
-`current is None` → student not enrolled in the current exam.
+There is no separate `current` field. A student is in the current exam when `events[0]` is an `UnderEvaluationEvent`. `current is None` from the old model is replaced by checking `isinstance(s.events[0], UnderEvaluationEvent)`.
 
-`Student.verbali_mark` property — summary dict for the mark badge:
-- `{'value': '19', 'kind': 'pass'}` — first passing grade
-- `{'value': '19~', 'kind': 'tilde'}` — most recent refused (tilde)
-- `{'value': 'RE'/'RI', 'kind': 'RE'/'RI'}` — most recent rejected/withdrawn
-- `None` — no notable history
+`Student.summary_mark` property — returns `Mark | None`:
+- First `passato` mark if one exists.
+- First `rifiutato` mark if no `passato`.
+- First `respinto`/`ritirato` mark otherwise.
+- `None` — no notable history.
+
+Additional read-only properties:
+- `attempts` — count of events that have a mark (verbale present) or are `UnderEvaluationEvent`.
+- `first` / `last` — date string of the first / most recent event.
+- `first_attempt` — date of the first event that has a mark (or `UnderEvaluationEvent`).
 
 `events` is most-recent-first. Do not use `reversed()` when you want the most recent entry.
 
 ### `src/examui/models/store.py` — all I/O
 
-#### `LiveCurrentExamEvent` — enrolled this exam, present in marks.tsv
-
-Has a `metrics: Metrics` attribute (frozen, from marks.tsv row at build time).
+#### `UnderEvaluationMark` — live read/write proxy for one student's marks.tsv row
 
 Private path/IO helpers (all instance methods):
 - `_marks_path()` / `_note_path()` — compute the relevant file paths.
-- `_read_tsv(field, default='')` / `_write_tsv(**kwargs)` — read/write marks.tsv columns.
+- `_read_tsv(field)` / `_write_tsv(**kwargs)` — read/write marks.tsv columns.
 - `_read_md()` / `_write_md(text)` — read/write the `.md` long-note file.
 
-R/W live properties (each a one-liner delegating to the helpers above):
-- `mark` — reads/writes marks.tsv `mark` column.
-- `short_note` — reads/writes marks.tsv `note` column.
-- `long_note` — reads/writes the `.md` file in the notes directory.
+R/W live properties:
+- `provisional` — reads/writes marks.tsv `mark` column.
+- `annotation` — reads/writes marks.tsv `note` column.
+- `note` — reads/writes the `.md` file in the notes directory.
+
+`save(provisional, annotation)` — writes both `mark` and `note` TSV columns in one operation.
 
 `_write_tsv` reads and rewrites the whole file in one operation; accepts arbitrary column keyword arguments.
+
+#### `UnderEvaluationEvent` — enrolled this exam, present in marks.tsv
+
+Has `date: str`, `metrics: Metrics` (frozen, from marks.tsv row at build time), and `mark: UnderEvaluationMark` (live I/O proxy). Inserted as `events[0]` in `Student.events` for current-exam students with source.
 
 #### `exam_date()` — `@cache`
 
@@ -186,22 +197,36 @@ Returns the stem of the most recent iscrizioni XLS (`YYMMDD`).
 
 #### `all_students()` — `@cache`
 
-Reads all iscrizioni XLS, all verbali XLS, past notes, and current marks.tsv once at startup. Builds the full `dict[email, Student]`. Determines `Live` vs `Absent` from marks.tsv presence (no filesystem check).
+Reads all iscrizioni XLS, all verbali XLS, past notes, and current marks.tsv once at startup. Builds the full `dict[email, Student]`. Students with source in marks.tsv get an `UnderEvaluationEvent` as their first event; enrolled-but-absent students get `ExamEvent(date, mark=None)` for the current date. No filesystem check for source presence.
 
 ---
 
 ## Source analysis model (`src/examui/models/source.py`)
 
-All public functions are `@cache`-decorated — computed once per process, warmed up at startup for all `LiveCurrentExamEvent` students.
+All public analysis functions are `@cache`-decorated — computed once per process, warmed up at startup for all `UnderEvaluationEvent` students.
 
 - `tree(email)` — directory tree as JSON-serialisable list.
 - `all_symbols(email)` — flat list of all symbol dicts across non-trivial files.
 - `file(email, relpath)` — Pygments-highlighted lines + symbols for one file.
 - `deps(email)` — dependency graph `{'svg': ..., 'paths': {node_id: relpath}}`. Uses Tarjan SCC + transitive reduction + Graphviz.
 - `javadoc_root(email)` — path to the pre-built Javadoc tree.
-- `warmup(email)` — eagerly populates all four caches. Called at startup.
+- `javadoc_path_for_source(relpath)` — maps a `.java` source relpath to the corresponding `.html` Javadoc path (`None` if not applicable).
+- `pygments_css()` — returns the Pygments CSS string for the `src` class.
+- `warmup(email)` — eagerly populates `tree`, `all_symbols`, and `deps` caches. Called at startup. (`file` is not pre-warmed — loaded on demand.)
 
-"Trivial" files/dirs (Exceptions, Error subclasses, `clients/`) are excluded from the symbol index and dependency graph.
+"Trivial" files are excluded from the symbol index and dependency graph. Triviality is determined by:
+1. Class/file name ends with `Exception`, `Error`, or `Client`.
+2. Superclass (transitively) is trivial.
+3. The file is in a package listed in `config.TRIVIAL_PACKAGES` (default: `client`, `clients`, `util`, `utils`).
+
+Trivial propagation is transitive: if a superclass is trivial, all subclasses are also trivial.
+
+## Source parsing (`src/examui/parsing.py`)
+
+Uses `tree-sitter` (via `tree_sitter_java`) — no dependency on Flask or config. Public API:
+
+- `symbols(text)` → `list[dict]` — symbol list for the source navigator. Each entry: `{kind, name, line, anchor}`. `anchor` is `'name(FQN1,FQN2)'` for methods/constructors, `''` for type declarations.
+- `class_uses(text)` → `(package, simple_name, uses, sym_count, kind)` — dependency information. `uses` is `{'member': set[FQN], 'parameter': set[FQN], 'return': set[FQN], 'inherits': set[FQN], 'bound': set[FQN], 'local': set[FQN], 'instantiates': set[FQN]}`. `kind` is one of `'class'`, `'abstract'`, `'interface'`, `'enum'`, `'record'`.
 
 ---
 
@@ -209,63 +234,78 @@ All public functions are `@cache`-decorated — computed once per process, warme
 
 ### `views/history.py` — `GET /history`
 
-All students enrolled at least once (past or current exam). Only `verbali_mark` in the mark column — no provisional marks, no current-exam data. Passes `students`, `exam_dates` (past dates only) to `history.html`.
+All students enrolled at least once (past or current exam). Only `summary_mark` in the mark column — no provisional marks. Passes `students`, `exam_dates` (past dates only), `current_date` to `history.html`.
+
+Each entry in `students` includes: `email`, `name`, `matricola`, `attempts`, `first`, `last`, `first_attempt`, `in_current` (bool), `dates` (list), `summary_mark` (`dataclasses.asdict(Mark)` or `None`).
 
 ### `views/schedule.py` — `GET /schedule`
 
-All `LiveCurrentExamEvent` students for the current exam. Includes full `Metrics` fields plus `verbali_mark` and `current_mark`. Sorted by `slot`. Passes `rows`, `today` (ISO date string) to `schedule.html`.
+All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark` and `current_mark` (from `live.mark.provisional`). Sorted by `slot`. Passes `rows`, `today` (ISO date string) to `schedule.html`.
 
 ### `views/student.py` — per-student routes
 
-- `GET /student/<email>` — renders `student.html`.
-- `POST /api/<email>/note` — saves both `short_note` (to marks.tsv) and `long_note` (to `.md` file) from a single form POST.
-- `POST /api/<email>/mark` — saves `mark` to marks.tsv.
+- `GET /student/<email>` — renders `student.html`. Passes `email`, `name`, `matricola`, `events` (only `ExamEvent` instances — `UnderEvaluationEvent` is excluded), `current` (`UnderEvaluationEvent | None`), `slot_minutes`.
+- `POST /api/<email>/note` — saves `note` (long-form, to `.md` file). Form field: `note`.
+- `POST /api/<email>/mark` — saves both `mark` and `annotation` to marks.tsv via `live.mark.save()`. Form fields: `mark`, `annotation`.
 - Source/Javadoc routes delegate to `source.*` functions.
 
 ---
 
 ## Templates
 
+Templates live at `src/examui/templates/`. Static files live at `src/examui/static/`.
+
 ### `base.html`
-Bootstrap 5 + Bootstrap Icons CDN.
+Bootstrap 5 + Bootstrap Icons CDN. Navigation bar (History / Schedule buttons + Active timer button) is in the shared `base.html` header block — `#active-btn` is rendered here, JS activates it per-page.
 
 ### `history.html`
-DataTables. `CFG = {students: [...]}`. Filters: date, has-~ checkbox. Links to `/schedule` and to `/student/<email>`. Filter state in `sessionStorage['history-filters']`. Active-timer button shows running student's name when `sessionStorage['examTimer']` is set.
+DataTables. `CFG = {students: [...]}`. Filters: date dropdown, kind dropdown (All/Nuovo/Assente/Passato/Rifiutato/Ritirato/Respinto), page-length select, text search. Links to `/student/<email>`. Filter state in `sessionStorage['history-filters']`. Active-timer button handled by `common.js`.
 
 ### `schedule.html`
-DataTables. `CFG = {rows: [...], today: 'YYYY-MM-DD'}`. Columns: slot, name, mark, tests, javadoc, cyclic, SLOC, docs, files, client SLOC, client files. "Today only" checkbox filter. Links to `/history` and to `/student/<email>`. Active-timer button shows running student's name when `sessionStorage['examTimer']` is set.
+DataTables. `CFG = {rows: [...], today: 'YYYY-MM-DD'}`. Columns: slot, name, mark, tests, javadoc, cyclic, SLOC, docs, files, client SLOC, client files. "Today only" and "New only" checkbox filters. Links to `/student/<email>`. Active-timer button handled by `common.js`.
 
 ### `student.html`
 
 Key pattern at top:
 ```jinja
-{% set cm = current.mark if current else none %}
+{% set cm = current.mark.provisional if current else none %}
 ```
 Single read of marks.tsv, reused for all conditional logic.
 
-Tab visibility: History always visible (shows past events only — current exam not listed). Note/Source/Deps/Javadoc enabled only when `cm != none and cm != 'AS'` (i.e. student is `LiveCurrentExamEvent` with a non-AS mark).
+Tab visibility: History tab always visible (shows only `ExamEvent` instances — `UnderEvaluationEvent` is not listed there). Note/Source/Deps/Javadoc tabs enabled when `current` is truthy (i.e. student is `UnderEvaluationEvent`), regardless of provisional mark value.
 
 Notes tab layout (top to bottom):
-1. `mark` input + status span
-2. Label "Note" + `short_note` input + status span (same `note-status` as above)
-3. `long_note` textarea (no label)
+1. Label "Mark" + `mark-input` text field
+2. Label "Note" + `annotation-input` text field
+3. `note-editor` textarea (long-form notes, no label)
+
+Status indicator is `#tab-note-status` (in the tab label itself), not a separate `#note-status` span.
 
 ---
 
 ## JavaScript
 
+### `static/common.js`
+Shared across all pages. Defines `renderMark(vm, cm)`:
+- If `cm` is provided and non-empty (schedule context) → yellow provisional badge.
+- If `vm` is set → verbali_mark badge using `MARK_CSS`/`MARK_LABEL` maps (kind → CSS class / short label).
+- If `cm` is provided but empty (in schedule, no provisional) → empty info badge.
+- Otherwise → empty string.
+
+Also activates `#active-btn` (defined in `base.html`) for all pages using `sessionStorage['examTimer']`.
+
 ### `static/history.js`
-DataTables for history list. `renderMark(vm)` — verbali_mark badge only. Filter state in `sessionStorage['history-filters']`. Reads `sessionStorage['examTimer']` at load: highlights active student's row (`table-warning`) and shows named button linking to their page.
+DataTables for history list. Uses `renderMark(row.summary_mark, row.in_current ? '' : undefined)`. Filter state in `sessionStorage['history-filters']` — persists `date`, `kind`, `order`, `search`, `pageLen`. Kind filter options: `nuovo` (in current, no summary_mark), `assente` (no summary_mark), or match `summary_mark.kind`.
 
 ### `static/schedule.js`
-DataTables for schedule. `renderMark(vm, cm)` — verbali_mark badge + provisional yellow badge + `??`. `iconFail(val)` / `iconCycles(val)` — Bootstrap Icons for tests/javadoc/cycles. "Today only" filter checks `row.slot.startsWith(CFG.today)`. Reads `sessionStorage['examTimer']` at load: highlights active student's row (`table-warning`) and shows named button linking to their page.
+DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. `iconFail(val)` / `iconCycles(val)` — Bootstrap Icons for tests/javadoc/cycles. "Today only" filter: `row.slot && row.slot.startsWith(CFG.today)`. "New only" filter: `row.summary_mark === null`. Active-timer button from `common.js`.
 
 ### `static/student.js`
-- **Timer**: `sessionStorage['examTimer'] = {email, startMs, slotMs}`. Progress bar at 80/90/95%.
-- **Note save**: single `POST /api/<email>/note` with both `short_note` and `long_note`. Debounced 2 s + blur for both inputs. Status shown in `#note-status`.
-- **Mark save**: `POST /api/<email>/mark` on blur/Enter.
-- **Source tree, symbol search, file viewer, deps graph, Javadoc**: fetch from `/api/<email>/source/*` and `/api/<email>/javadoc/`.
-- **Font size**: `localStorage['oral-src-font-size']`.
+- **Timer**: `sessionStorage['examTimer'] = {email, startMs, slotMs}`. Progress bar at 80/90/95%. Slot duration editable via `#slot-input`.
+- **Note save**: `POST /api/<email>/note` with `note` field only (long-form). Debounced 2 s + blur. Status shown in `#tab-note-status` (in the tab label).
+- **Mark save**: `POST /api/<email>/mark` with `mark` + `annotation` fields together (blur/Enter on either input triggers save).
+- **Source tree, symbol search, file viewer, deps graph, Javadoc**: fetch from `/api/<email>/source/*` and `/api/<email>/javadoc/`. Source tree loaded lazily on first Source tab open. Panzoom (CDN) used for the deps SVG; double-click resets zoom.
+- **Font size**: `localStorage['oral-src-font-size']` key; select `#src-fontsize`.
 
 ---
 
@@ -274,22 +314,26 @@ DataTables for schedule. `renderMark(vm, cm)` — verbali_mark badge + provision
 - `@cache` used consistently throughout — never `@lru_cache` with explicit size.
 - `all_students()`, `exam_date()`: cached for process lifetime.
 - `tree`, `all_symbols`, `file`, `deps` in `source.py`: cached per email (or email+relpath).
-- Live I/O (`mark`, `short_note`, `long_note`) intentionally **not** cached.
+- Live I/O (`provisional`, `annotation`, `note` on `UnderEvaluationMark`) intentionally **not** cached.
 - Single-worker gunicorn is a hard requirement.
 
 ---
 
-## Mark string conventions
+## Mark conventions
 
-| Mark   | Meaning                          |
-|--------|----------------------------------|
-| `AS`   | Assente (absent / not in marks.tsv) |
-| `??`   | marks.tsv not yet prepared       |
-| `19V`  | 19 passed (verbale V)            |
-| `19R`  | 19 refused by student (~ tilde)  |
-| `REV`  | Rejected (respinto)              |
-| `RIV`  | Withdrawn (ritirato)             |
-| `RI?`  | Withdrawn provisional            |
-| `RE?`  | Rejected provisional             |
+Verbale marks are represented by the `Mark` dataclass with a `kind` field:
 
-`verbali_mark` uses `mark[-1:] == 'V'` for pass, `mark[-1:] == 'R' and mark[:2] not in ('RI','RE')` for tilde, `mark[:2] in ('RE','RI')` for rejected/withdrawn. Events are most-recent-first so `next()` finds the most recent match.
+| `kind`      | Meaning                                      |
+|-------------|----------------------------------------------|
+| `passato`   | Passed (numeric `value`, verbale stato `V`)  |
+| `rifiutato` | Refused by student (numeric `value`, tilde)  |
+| `respinto`  | Rejected/failed (`value` is `None`)          |
+| `ritirato`  | Withdrawn (`value` is `None`)                |
+
+`ExamEvent.mark is None` means the student was absent (enrolled but no verbale entry).
+
+Provisional marks in marks.tsv (`UnderEvaluationMark.provisional`) are free-form strings entered by the examiner (e.g. `18`, `RE`, `RI`). They are not `Mark` objects.
+
+`Student.summary_mark` returns the most notable `Mark` from past verbale events: first `passato` if any, then first `rifiutato`, then first `respinto`/`ritirato`, else `None`.
+
+`renderMark(vm, cm)` in `common.js`: `vm` is `dataclasses.asdict(summary_mark)` (with `kind` and `value` keys) or `null`; `cm` is the provisional string or `undefined` (history context).

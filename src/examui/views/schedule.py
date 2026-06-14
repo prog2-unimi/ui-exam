@@ -5,6 +5,7 @@ import dataclasses
 from datetime import datetime
 
 from flask import Blueprint, render_template
+from examui import config
 from examui.models.store import all_students, UnderEvaluationEvent
 
 bp = Blueprint('schedule', __name__, url_prefix='')
@@ -12,7 +13,7 @@ bp = Blueprint('schedule', __name__, url_prefix='')
 
 @bp.get('/schedule')
 def schedule():
-  today = datetime.now().strftime('%Y-%m-%d')
+  today = datetime.strptime(config.TODAY, '%y%m%d').strftime('%Y-%m-%d')
   students = all_students()
 
   rows = []

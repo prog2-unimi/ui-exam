@@ -116,6 +116,22 @@ class Student:
     current:   AbsentCurrentExamEvent | LiveCurrentExamEvent | None = None
 
     @property
+    def attempts(self) -> int:
+        return sum(1 for e in self.events if e.mark.kind != 'assente')
+
+    @property
+    def first(self) -> str:
+        return self.events[-1].date if self.events else ''
+
+    @property
+    def last(self) -> str:
+        return self.events[0].date if self.events else ''
+
+    @property
+    def first_attempt(self) -> str:
+        return next((e.date for e in reversed(self.events) if e.mark.kind != 'assente'), '')
+
+    @property
     def summary_mark(self) -> Mark | None:
         passing = next((e for e in self.events if e.mark.kind == 'passato'), None)
         if passing:

@@ -4,14 +4,15 @@
 import dataclasses
 
 from flask import Blueprint, render_template
-from examui.models.store import all_students
+from examui.models.store import all_students, exam_date
 
 bp = Blueprint('history', __name__, url_prefix='')
 
 
 @bp.get('/history')
 def list_students():
-    students = all_students()
+    students     = all_students()
+    current_date = exam_date()
 
     summary   = []
     all_dates = set()
@@ -20,21 +21,24 @@ def list_students():
         event_dates = sorted({e.date for e in s.events}, reverse=True)
         all_dates.update(event_dates)
 
-        first_eval   = next((e.date for e in reversed(s.events) if e.mark.kind != 'assente'), '')
-        sm           = s.summary_mark
+        in_current = s.current is not None
+        sm         = s.summary_mark
+        dates      = event_dates + ([current_date] if in_current else [])
 
         summary.append({
-            'email':        s.email,
-            'name':         s.name,
-            'matricola':    s.matricola,
-            'n':            sum(1 for e in s.events if e.mark.kind != 'assente'),
-            'first':        event_dates[-1] if event_dates else '',
-            'last':         event_dates[0]  if event_dates else '',
-            'first_eval':   first_eval,
-            'dates':        event_dates,
-            'summary_mark': dataclasses.asdict(sm) if sm else None,
+            'email':         s.email,
+            'name':          s.name,
+            'matricola':     s.matricola,
+            'attempts':      s.attempts,
+            'first':         s.first,
+            'last':          s.last,
+            'first_attempt': s.first_attempt,
+            'in_current':    in_current,
+            'dates':         dates,
+            'summary_mark':  dataclasses.asdict(sm) if sm else None,
         })
 
     return render_template('history.html',
                            students=summary,
+                           current_date=current_date,
                            exam_dates=sorted(all_dates, reverse=True))

@@ -18,12 +18,12 @@ const table = new DataTable('#students-table', {
     { data: 'email',
       render: (d) => `<a href="/student/${d}">${d}</a>` },
     { data: 'matricola' },
-    { data: 'n', className: 'text-end' },
-    { data: 'first',      render: fmtDate },
-    { data: 'last',       render: fmtDate },
-    { data: 'first_eval', render: fmtDate },
+    { data: 'attempts',       className: 'text-end' },
+    { data: 'first',          render: fmtDate },
+    { data: 'last',           render: fmtDate },
+    { data: 'first_attempt',  render: fmtDate },
     { data: null, orderable: false,
-      render: (_, __, row) => renderMark(row.summary_mark) },
+      render: (_, __, row) => renderMark(row.summary_mark, row.in_current ? '' : undefined) },
   ],
 });
 
@@ -44,8 +44,8 @@ function restoreFilters() {
   if (!saved) return;
   try {
     const f = JSON.parse(saved);
-    document.getElementById('date-filter').value = f.date ?? '';
-    document.getElementById('kind-filter').value = f.kind ?? '';
+    document.getElementById('date-filter').value  = f.date  ?? '';
+    document.getElementById('kind-filter').value  = f.kind  ?? '';
     if (f.order)   table.order(f.order);
     if (f.search)  { document.getElementById('dt-search').value = f.search; table.search(f.search); }
     if (f.pageLen) { document.getElementById('page-len').value  = f.pageLen; table.page.len(f.pageLen); }
@@ -56,7 +56,8 @@ DataTable.ext.search.push((_settings, _data, _idx, row) => {
   const date = document.getElementById('date-filter').value;
   if (date && !row.dates.includes(date)) return false;
   const kind = document.getElementById('kind-filter').value;
-  if (kind && row.summary_mark?.kind !== kind) return false;
+  if (kind === 'nuovo') { if (!(row.in_current && !row.summary_mark)) return false; }
+  else if (kind && row.summary_mark?.kind !== kind) return false;
   return true;
 });
 

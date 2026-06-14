@@ -96,6 +96,7 @@ Past exam notes are read once at startup (baked into `Mark.note` on each `ExamEv
 ### `STUDENT_BASE/<email>/source/`
 
 Student's submitted Java project. Layout:
+
 - If `source/src/main/java/` exists → that is the source root (Maven layout).
 - Otherwise `source/` itself is the source root.
 
@@ -163,12 +164,14 @@ class Student:
 There is no separate `current` field. A student is in the current exam when `events[0]` is an `UnderEvaluationEvent`. `current is None` from the old model is replaced by checking `isinstance(s.events[0], UnderEvaluationEvent)`.
 
 `Student.summary_mark` property — returns `Mark | None`:
+
 - First `passato` mark if one exists.
 - First `rifiutato` mark if no `passato`.
 - First `respinto`/`ritirato` mark otherwise.
 - `None` — no notable history.
 
 Additional read-only properties:
+
 - `attempts` — count of events that have a mark (verbale present) or are `UnderEvaluationEvent`.
 - `first` / `last` — date string of the first / most recent event.
 - `first_attempt` — date of the first event that has a mark (or `UnderEvaluationEvent`).
@@ -180,11 +183,13 @@ Additional read-only properties:
 #### `UnderEvaluationMark` — live read/write proxy for one student's marks.tsv row
 
 Private path/IO helpers (all instance methods):
+
 - `_marks_path()` / `_note_path()` — compute the relevant file paths.
 - `_read_tsv(field)` / `_write_tsv(**kwargs)` — read/write marks.tsv columns.
 - `_read_md()` / `_write_md(text)` — read/write the `.md` long-note file.
 
 R/W live properties:
+
 - `provisional` — reads/writes marks.tsv `mark` column.
 - `annotation` — reads/writes marks.tsv `note` column.
 - `note` — reads/writes the `.md` file in the notes directory.
@@ -297,14 +302,17 @@ All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics
 Templates live at `src/examui/templates/`. Static files live at `src/examui/static/`.
 
 ### `base.html`
+
 Bootstrap 5 + Bootstrap Icons CDN. Navigation bar (History / Schedule buttons + Active timer button) is in the shared `base.html` header block — `#active-btn` is rendered here, JS activates it per-page.
 
 Navbar also contains `#wall-clock` (current time, `HH:MM`, updated every second by `common.js`) and `#pace-badge` (ahead/behind indicator, polling `/api/pace` every 60 s). Both are visible on every page. `#pace-badge` is hidden when no slots are booked, when all students are done, or before the first slot's window has passed.
 
 ### `history.html`
+
 DataTables. `CFG = {students: [...]}`. Filters: date dropdown, kind dropdown (All/Nuovo/Assente/Passato/Rifiutato/Ritirato/Respinto), page-length select, text search. Links to `/student/<email>`. Filter state in `sessionStorage['history-filters']`. Active-timer button handled by `common.js`.
 
 ### `schedule.html`
+
 DataTables. `CFG = {rows: [...], today: 'YYYY-MM-DD'}`. Columns: slot, name, mark, tests, javadoc, cyclic, SLOC, docs, files, client SLOC, client files. "Today only" and "New only" checkbox filters. Links to `/student/<email>`. Active-timer button handled by `common.js`.
 
 ### `student.html`
@@ -318,6 +326,7 @@ Single read of marks.tsv, reused for all conditional logic.
 Tab visibility: History tab always visible (shows only `ExamEvent` instances — `UnderEvaluationEvent` is not listed there). Note/Source/Deps/Javadoc tabs enabled when `current` is truthy (i.e. student is `UnderEvaluationEvent`), regardless of provisional mark value.
 
 Notes tab layout (top to bottom):
+
 1. Label "Mark" + `mark-input` text field
 2. Label "Note" + `annotation-input` text field
 3. `note-editor` textarea (long-form notes, no label)
@@ -329,7 +338,9 @@ Status indicator is `#tab-note-status` (in the tab label itself), not a separate
 ## JavaScript
 
 ### `static/common.js`
+
 Shared across all pages. Defines `renderMark(vm, cm)`:
+
 - If `cm` is provided and non-empty (schedule context) → yellow provisional badge.
 - If `vm` is set → verbali_mark badge using `MARK_CSS`/`MARK_LABEL` maps (kind → CSS class / short label).
 - If `cm` is provided but empty (in schedule, no provisional) → empty info badge.
@@ -340,14 +351,17 @@ Also activates `#active-btn` (defined in `base.html`) for all pages using `sessi
 Drives `#wall-clock` (ticks every second) and `#pace-badge` (polls `/api/pace` every 60 s). Badge shows `+Xm` (green) when ahead or `-Xm` (red) when behind; hidden when irrelevant.
 
 ### `static/history.js`
+
 DataTables for history list. Uses `renderMark(row.summary_mark, row.in_current ? '' : undefined)`. Filter state in `sessionStorage['history-filters']` — persists `date`, `kind`, `order`, `search`, `pageLen`. Kind filter options: `nuovo` (in current, no summary_mark), `assente` (no summary_mark), or match `summary_mark.kind`.
 
 ### `static/schedule.js`
+
 DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. `iconFail(val)` / `iconCycles(val)` — Bootstrap Icons for tests/javadoc/cycles. "Today only" filter: `row.slot && row.slot.startsWith(CFG.today)`. "New only" filter: `row.summary_mark === null`. Active-timer button from `common.js`.
 
 `createdRow` adds `table-warning` for the active-timer student. The name cell render prepends `bi-caret-right-fill text-primary` for `is_current` and `bi-caret-right text-secondary` for `is_next`; active-timer highlight takes priority over the caret icons.
 
 ### `static/student.js`
+
 - **Timer**: `sessionStorage['examTimer'] = {email, startMs, slotMs}`. Progress bar at 80/90/95%. Slot duration editable via `#slot-input`.
 - **Note save**: `POST /api/<email>/note` with `note` field only (long-form). Debounced 2 s + blur. Status shown in `#tab-note-status` (in the tab label).
 - **Mark save**: `POST /api/<email>/mark` with `mark` + `annotation` fields together (blur/Enter on either input triggers save).

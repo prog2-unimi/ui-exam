@@ -7,38 +7,42 @@ from flask import Blueprint, render_template
 from examui.models.events import ExamEvent
 from examui.models.store import all_students, exam_date, UnderEvaluationEvent
 
-bp = Blueprint('history', __name__, url_prefix='')
+bp = Blueprint("history", __name__, url_prefix="")
 
 
-@bp.get('/history')
+@bp.get("/history")
 def list_students():
-    students     = all_students()
-    current_date = exam_date()
+  students = all_students()
+  current_date = exam_date()
 
-    summary   = []
-    all_dates = set()
+  summary = []
+  all_dates = set()
 
-    for s in sorted(students.values(), key=lambda s: s.name):
-        event_dates = sorted({e.date for e in s.events}, reverse=True)
-        all_dates.update(d for d in event_dates if d != current_date)
+  for s in sorted(students.values(), key=lambda s: s.name):
+    event_dates = sorted({e.date for e in s.events}, reverse=True)
+    all_dates.update(d for d in event_dates if d != current_date)
 
-        in_current = bool(s.events) and isinstance(s.events[0], UnderEvaluationEvent)
-        sm         = s.summary_mark
+    in_current = bool(s.events) and isinstance(s.events[0], UnderEvaluationEvent)
+    sm = s.summary_mark
 
-        summary.append({
-            'email':         s.email,
-            'name':          s.name,
-            'matricola':     s.matricola,
-            'attempts':      s.attempts,
-            'first':         s.first,
-            'last':          s.last,
-            'first_attempt': s.first_attempt,
-            'in_current':    in_current,
-            'dates':         event_dates,
-            'summary_mark':  dataclasses.asdict(sm) if sm else None,
-        })
+    summary.append(
+      {
+        "email": s.email,
+        "name": s.name,
+        "matricola": s.matricola,
+        "attempts": s.attempts,
+        "first": s.first,
+        "last": s.last,
+        "first_attempt": s.first_attempt,
+        "in_current": in_current,
+        "dates": event_dates,
+        "summary_mark": dataclasses.asdict(sm) if sm else None,
+      }
+    )
 
-    return render_template('history.html',
-                           students=summary,
-                           current_date=current_date,
-                           exam_dates=sorted(all_dates, reverse=True))
+  return render_template(
+    "history.html",
+    students=summary,
+    current_date=current_date,
+    exam_dates=sorted(all_dates, reverse=True),
+  )

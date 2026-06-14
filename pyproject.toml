@@ -18,3 +18,13 @@ dependencies = [
     "openpyxl>=3.1.5",
     "graphviz>=0.20",
 ]
+
+[dependency-groups]
+dev = ["ruff"]
+
+[tool.ruff]
+line-length  = 100
+indent-width = 2
+
+[tool.ruff.format]
+indent-style = "space"

@@ -1,6 +1,6 @@
 
 function fmtSlot(slot) {
-  if (!slot) return '';
+  if (!slot) return '<i class="bi bi-exclamation-triangle-fill text-warning"></i>';
   const d = new Date(slot);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');

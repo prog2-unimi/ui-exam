@@ -7,12 +7,12 @@ from datetime import datetime
 from flask import Blueprint, render_template
 from examui.models.store import all_students, UnderEvaluationEvent
 
-bp = Blueprint("schedule", __name__, url_prefix="")
+bp = Blueprint('schedule', __name__, url_prefix='')
 
 
-@bp.get("/schedule")
+@bp.get('/schedule')
 def schedule():
-  today = datetime.now().strftime("%Y-%m-%d")
+  today = datetime.now().strftime('%Y-%m-%d')
   students = all_students()
 
   rows = []
@@ -24,13 +24,14 @@ def schedule():
     sm = s.summary_mark
     rows.append(
       {
-        "email": s.email,
-        "name": s.name,
-        "matricola": s.matricola,
-        "summary_mark": dataclasses.asdict(sm) if sm else None,
-        "current_mark": live.mark.provisional,
+        'email': s.email,
+        'name': s.name,
+        'matricola': s.matricola,
+        'summary_mark': dataclasses.asdict(sm) if sm else None,
+        'current_mark': live.mark.provisional,
         **dataclasses.asdict(live.metrics),
+        'slot': live.metrics.slot.isoformat() if live.metrics.slot else None,
       }
     )
 
-  return render_template("schedule.html", rows=rows, today=today)
+  return render_template('schedule.html', rows=rows, today=today)

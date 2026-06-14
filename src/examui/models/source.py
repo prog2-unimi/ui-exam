@@ -24,15 +24,15 @@ from examui import parsing
 
 
 def javadoc_root(email: str) -> Path:
-  return config.STUDENT_BASE / email / "javadoc"
+  return config.STUDENT_BASE / email / 'javadoc'
 
 
 # ── source ────────────────────────────────────────────────────────────────────
 
 
 def _root(email: str) -> Path:
-  base = config.STUDENT_BASE / email / "source"
-  java = base / "src" / "main" / "java"
+  base = config.STUDENT_BASE / email / 'source'
+  java = base / 'src' / 'main' / 'java'
   return java if java.exists() else base
 
 
@@ -52,8 +52,8 @@ def all_symbols(email: str) -> list[dict]:
     return []
   trivial_paths = _trivial_rel_paths(root)
   result = []
-  for f in sorted(root.rglob("*.java")):
-    if f.stem == "package-info":
+  for f in sorted(root.rglob('*.java')):
+    if f.stem == 'package-info':
       continue
     rel = str(f.relative_to(root))
     if rel in trivial_paths:
@@ -61,9 +61,9 @@ def all_symbols(email: str) -> list[dict]:
     if any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1]):
       continue
     try:
-      text = f.read_text(errors="replace")
+      text = f.read_text(errors='replace')
       for sym in parsing.symbols(text):
-        result.append({"file": rel, **sym})
+        result.append({'file': rel, **sym})
     except Exception:
       pass
   return result
@@ -82,61 +82,61 @@ def _walk(path: Path, root: Path, trivial_paths: set[str], parent_trivial: bool 
       children = _walk(entry, root, trivial_paths, trivial)
       if children:
         items.append(
-          {"type": "dir", "name": entry.name, "path": rel, "children": children, "trivial": trivial}
+          {'type': 'dir', 'name': entry.name, 'path': rel, 'children': children, 'trivial': trivial}
         )
-    elif entry.suffix == ".java":
-      if entry.stem == "package-info":
+    elif entry.suffix == '.java':
+      if entry.stem == 'package-info':
         continue
       trivial = parent_trivial or rel in trivial_paths
-      items.append({"type": "file", "name": entry.name, "path": rel, "trivial": trivial})
+      items.append({'type': 'file', 'name': entry.name, 'path': rel, 'trivial': trivial})
   return items
 
 
 _LEXER = JavaLexer()
-_FORMATTER = HtmlFormatter(linenos=False, cssclass="src", style="default")
+_FORMATTER = HtmlFormatter(linenos=False, cssclass='src', style='default')
 
 
 def pygments_css() -> str:
-  return _FORMATTER.get_style_defs(".src")
+  return _FORMATTER.get_style_defs('.src')
 
 
 def _split_html_lines(html: str) -> list[str]:
-  pre = re.search(r"<pre[^>]*>(.*?)</pre>", html, re.DOTALL)
+  pre = re.search(r'<pre[^>]*>(.*?)</pre>', html, re.DOTALL)
   if not pre:
     return []
   content = pre.group(1)
-  if content.endswith("\n"):
+  if content.endswith('\n'):
     content = content[:-1]
 
   result: list[str] = []
   open_spans: list[str] = []
 
-  for raw in content.split("\n"):
-    line = "".join(f"<span{a}>" for a in open_spans) + raw
-    for tag in re.findall(r"</?span[^>]*>", raw):
-      if tag.startswith("</"):
+  for raw in content.split('\n'):
+    line = ''.join(f'<span{a}>' for a in open_spans) + raw
+    for tag in re.findall(r'</?span[^>]*>', raw):
+      if tag.startswith('</'):
         if open_spans:
           open_spans.pop()
       else:
-        m = re.match(r"<span([^>]*)>", tag)
+        m = re.match(r'<span([^>]*)>', tag)
         if m:
           open_spans.append(m.group(1))
-    line += "</span>" * len(open_spans)
+    line += '</span>' * len(open_spans)
     result.append(line)
 
   return result
 
 
-_TRIVIAL_STEM_RE = re.compile(r"(?:Exception|Error|Client)$")
-_TRIVIAL_INHERITS_RE = re.compile(r"(?:Exception|Error|Throwable)$")
-_TRIVIAL_DIR_RE = re.compile(r"^clients?$", re.IGNORECASE)
+_TRIVIAL_STEM_RE = re.compile(r'(?:Exception|Error|Client)$')
+_TRIVIAL_INHERITS_RE = re.compile(r'(?:Exception|Error|Throwable)$')
+_TRIVIAL_DIR_RE = re.compile(r'^clients?$', re.IGNORECASE)
 
 
 def _is_trivial(stem: str, uses: dict[str, set[str]]) -> bool:
   if _TRIVIAL_STEM_RE.search(stem):
     return True
   return any(
-    _TRIVIAL_INHERITS_RE.search(fqn.rsplit(".", 1)[-1]) for fqn in uses.get("inherits", set())
+    _TRIVIAL_INHERITS_RE.search(fqn.rsplit('.', 1)[-1]) for fqn in uses.get('inherits', set())
   )
 
 
@@ -146,10 +146,10 @@ def _close_trivial(parsed: dict[str, dict]) -> None:
   while changed:
     changed = False
     for info in parsed.values():
-      if not info["trivial"]:
-        for inh in info["uses"].get("inherits", set()):
-          if parsed.get(inh, {}).get("trivial", False):
-            info["trivial"] = True
+      if not info['trivial']:
+        for inh in info['uses'].get('inherits', set()):
+          if parsed.get(inh, {}).get('trivial', False):
+            info['trivial'] = True
             changed = True
             break
 
@@ -158,33 +158,33 @@ def _close_trivial(parsed: dict[str, dict]) -> None:
 def _trivial_rel_paths(root: Path) -> set[str]:
   """Return root-relative paths of all trivial .java files (by name or inheritance closure)."""
   parsed: dict[str, dict] = {}
-  for f in root.rglob("*.java"):
-    if f.stem == "package-info":
+  for f in root.rglob('*.java'):
+    if f.stem == 'package-info':
       continue
     if any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1]):
       continue
     try:
-      text = f.read_text(errors="replace")
+      text = f.read_text(errors='replace')
       pkg, simple, uses, _ = parsing.class_uses(text)
       if not simple:
         continue
-      fqn = f"{pkg}.{simple}" if pkg else simple
+      fqn = f'{pkg}.{simple}' if pkg else simple
       parsed[fqn] = {
-        "rel": str(f.relative_to(root)),
-        "uses": uses,
-        "trivial": _is_trivial(simple, uses),
+        'rel': str(f.relative_to(root)),
+        'uses': uses,
+        'trivial': _is_trivial(simple, uses),
       }
     except Exception:
       pass
   _close_trivial(parsed)
-  return {info["rel"] for info in parsed.values() if info["trivial"]}
+  return {info['rel'] for info in parsed.values() if info['trivial']}
 
 
-_NID_RE = re.compile(r"[^a-zA-Z0-9_]")
+_NID_RE = re.compile(r'[^a-zA-Z0-9_]')
 
 
 def _nid(fqn: str) -> str:
-  return "n_" + _NID_RE.sub("_", fqn)
+  return 'n_' + _NID_RE.sub('_', fqn)
 
 
 def _javadoc_ids(email: str, relpath: str) -> frozenset[str]:
@@ -194,26 +194,26 @@ def _javadoc_ids(email: str, relpath: str) -> frozenset[str]:
   jd_path = javadoc_root(email) / jd_rel
   if not jd_path.exists():
     return frozenset()
-  return frozenset(re.findall(r'\bid="([^"]*)"', jd_path.read_text(errors="replace")))
+  return frozenset(re.findall(r'\bid="([^"]*)"', jd_path.read_text(errors='replace')))
 
 
 @cache
 def file(email: str, relpath: str) -> dict | None:
   root = _root(email).resolve()
   path = (root / relpath).resolve()
-  if not str(path).startswith(str(root)) or not path.exists() or path.suffix != ".java":
+  if not str(path).startswith(str(root)) or not path.exists() or path.suffix != '.java':
     return None
-  text = path.read_text(errors="replace")
+  text = path.read_text(errors='replace')
   html = highlight(text, _LEXER, _FORMATTER)
   syms = parsing.symbols(text)
   jd_ids = _javadoc_ids(email, relpath)
   if jd_ids:
     for s in syms:
-      if s["anchor"] and s["anchor"] not in jd_ids:
-        s["anchor"] = ""
+      if s['anchor'] and s['anchor'] not in jd_ids:
+        s['anchor'] = ''
   return {
-    "lines": _split_html_lines(html),
-    "symbols": syms,
+    'lines': _split_html_lines(html),
+    'symbols': syms,
   }
 
 
@@ -304,42 +304,42 @@ def _tarjan_sccs(nodes: list[str], adj: dict[str, list[str]]) -> list[list[str]]
 def deps(email: str) -> dict:
   root = _root(email)
   if not root.exists():
-    return {"svg": "", "paths": {}}
+    return {'svg': '', 'paths': {}}
 
   java_files = [
     f
-    for f in sorted(root.rglob("*.java"))
-    if f.stem != "package-info"
+    for f in sorted(root.rglob('*.java'))
+    if f.stem != 'package-info'
     and not any(_TRIVIAL_DIR_RE.match(p) for p in f.relative_to(root).parts[:-1])
   ]
 
   # Pass 1: parse all files
   all_parsed: dict[str, dict] = {}
   for f in java_files:
-    text = f.read_text(errors="replace")
+    text = f.read_text(errors='replace')
     pkg, simple, uses, sym_count = parsing.class_uses(text)
     if not simple:
       continue
-    fqn = f"{pkg}.{simple}" if pkg else simple
+    fqn = f'{pkg}.{simple}' if pkg else simple
     all_parsed[fqn] = {
-      "name": simple,
-      "path": str(f.relative_to(root)),
-      "uses": uses,
-      "sym_count": sym_count,
-      "trivial": _is_trivial(simple, uses),
+      'name': simple,
+      'path': str(f.relative_to(root)),
+      'uses': uses,
+      'sym_count': sym_count,
+      'trivial': _is_trivial(simple, uses),
     }
 
   # Pass 2: propagate trivial flag through inheritance chains
   _close_trivial(all_parsed)
 
-  class_info = {fqn: info for fqn, info in all_parsed.items() if not info["trivial"]}
+  class_info = {fqn: info for fqn, info in all_parsed.items() if not info['trivial']}
   known = set(class_info)
 
   # Build adjacency list (edges to known classes only, no self-loops)
   adj: dict[str, list[str]] = {fqn: [] for fqn in known}
   for src_fqn, info in class_info.items():
     seen: set[str] = set()
-    for targets in info["uses"].values():
+    for targets in info['uses'].values():
       for tgt in targets:
         if tgt in known and tgt != src_fqn and tgt not in seen:
           adj[src_fqn].append(tgt)
@@ -356,27 +356,27 @@ def deps(email: str) -> dict:
 
   # Within each SCC sort ascending by (out_degree, sym_count) — simplest first
   for scc in sccs:
-    scc.sort(key=lambda fqn: (out_degree[fqn], class_info[fqn]["sym_count"]))
+    scc.sort(key=lambda fqn: (out_degree[fqn], class_info[fqn]['sym_count']))
 
   # Build Graphviz graph
   dot = _graphviz.Digraph(
     graph_attr={
-      "rankdir": "LR",
-      "splines": "spline",
-      "bgcolor": "transparent",
-      "nodesep": "0.2",
-      "ranksep": "0.4",
+      'rankdir': 'LR',
+      'splines': 'spline',
+      'bgcolor': 'transparent',
+      'nodesep': '0.2',
+      'ranksep': '0.4',
     },
     node_attr={
-      "shape": "box",
-      "fontname": "Courier",
-      "style": "filled",
-      "fillcolor": "white",
-      "fontsize": "7",
-      "margin": "0.03,0.02",
-      "height": "0.15",
+      'shape': 'box',
+      'fontname': 'Courier',
+      'style': 'filled',
+      'fillcolor': 'white',
+      'fontsize': '7',
+      'margin': '0.03,0.02',
+      'height': '0.15',
     },
-    edge_attr={"arrowsize": "0.4", "color": "#888888"},
+    edge_attr={'arrowsize': '0.4', 'color': '#888888'},
   )
 
   paths: dict[str, str] = {}
@@ -386,17 +386,17 @@ def deps(email: str) -> dict:
       fqn = scc[0]
       info = class_info[fqn]
       nid = _nid(fqn)
-      dot.node(fqn, label=info["name"], id=nid, tooltip=fqn)
-      paths[nid] = info["path"]
+      dot.node(fqn, label=info['name'], id=nid, tooltip=fqn)
+      paths[nid] = info['path']
     else:
       # Multi-node SCC — wrap in a cluster subgraph
-      with dot.subgraph(name=f"cluster_{scc_idx}") as sg:
-        sg.attr(style="dashed", color="#cccccc", fontsize="7", label="")
+      with dot.subgraph(name=f'cluster_{scc_idx}') as sg:
+        sg.attr(style='dashed', color='#cccccc', fontsize='7', label='')
         for fqn in scc:
           info = class_info[fqn]
           nid = _nid(fqn)
-          sg.node(fqn, label=info["name"], id=nid, tooltip=fqn)
-          paths[nid] = info["path"]
+          sg.node(fqn, label=info['name'], id=nid, tooltip=fqn)
+          paths[nid] = info['path']
 
   node_to_scc = {fqn: i for i, scc in enumerate(sccs) for fqn in scc}
 
@@ -409,22 +409,22 @@ def deps(email: str) -> dict:
         dot.edge(tgt, src_fqn)
         drawn.add((src_fqn, tgt))
 
-  svg = dot.pipe(format="svg").decode("utf-8")
-  return {"svg": svg, "paths": paths}
+  svg = dot.pipe(format='svg').decode('utf-8')
+  return {'svg': svg, 'paths': paths}
 
 
 def warmup(email: str) -> None:
   """Populate all caches for one student. Call at startup before workers fork."""
-  _log.info("[warmup] %s: tree", email)
+  _log.info('[warmup] %s: tree', email)
   tree(email)
-  _log.info("[warmup] %s: symbols", email)
+  _log.info('[warmup] %s: symbols', email)
   all_symbols(email)
-  _log.info("[warmup] %s: deps", email)
+  _log.info('[warmup] %s: deps', email)
   deps(email)
-  _log.info("[warmup] %s: done", email)
+  _log.info('[warmup] %s: done', email)
 
 
 def javadoc_path_for_source(relpath: str) -> str | None:
-  if relpath.endswith(".java"):
-    return relpath[:-5] + ".html"
+  if relpath.endswith('.java'):
+    return relpath[:-5] + '.html'
   return None

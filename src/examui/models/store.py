@@ -12,12 +12,12 @@ from examui.models.events import ExamEvent, Mark, Metrics, Student
 
 
 class UnderEvaluationMark:
-  def __init__(self, event: "UnderEvaluationEvent") -> None:
+  def __init__(self, event: 'UnderEvaluationEvent') -> None:
     self._event = event
 
   @property
   def provisional(self) -> str:
-    return self._event._read_tsv("mark")
+    return self._event._read_tsv('mark')
 
   @provisional.setter
   def provisional(self, value: str):
@@ -41,39 +41,39 @@ class UnderEvaluationEvent:
     self.metrics = Metrics.from_row(row)
 
   def _marks_path(self) -> Path:
-    return config.EVALS_DIR / exam_date() / "marks.tsv"
+    return config.EVALS_DIR / exam_date() / 'marks.tsv'
 
   def _note_path(self) -> Path:
-    return config.EVALS_DIR / exam_date() / "notes" / f"{self._email}.md"
+    return config.EVALS_DIR / exam_date() / 'notes' / f'{self._email}.md'
 
-  def _read_tsv(self, field: str, default: str = "") -> str:
+  def _read_tsv(self, field: str, default: str = '') -> str:
     path = self._marks_path()
     if not path.exists():
       return default
-    df = pd.read_csv(path, sep="\t", na_filter=False)
-    row = df[df["email"] == self._email]
+    df = pd.read_csv(path, sep='\t', na_filter=False)
+    row = df[df['email'] == self._email]
     if row.empty:
-      raise RuntimeError(f"{self._email} not in marks.tsv")
+      raise RuntimeError(f'{self._email} not in marks.tsv')
     return str(row.iloc[0][field])
 
   def _write_tsv(self, **kwargs: str) -> None:
     path = self._marks_path()
     if not path.exists():
-      raise RuntimeError(f"marks.tsv not found at {path} — exam not yet prepared")
-    df = pd.read_csv(path, sep="\t", na_filter=False)
-    if self._email not in df["email"].values:
-      raise RuntimeError(f"{self._email} not in marks.tsv")
+      raise RuntimeError(f'marks.tsv not found at {path} — exam not yet prepared')
+    df = pd.read_csv(path, sep='\t', na_filter=False)
+    if self._email not in df['email'].values:
+      raise RuntimeError(f'{self._email} not in marks.tsv')
     for col, val in kwargs.items():
-      df.loc[df["email"] == self._email, col] = val
-    df.to_csv(path, sep="\t", index=False)
+      df.loc[df['email'] == self._email, col] = val
+    df.to_csv(path, sep='\t', index=False)
 
   def _read_md(self) -> str:
     p = self._note_path()
-    return p.read_text() if p.exists() else ""
+    return p.read_text() if p.exists() else ''
 
   def _write_md(self, text: str) -> None:
     p = self._note_path()
-    cleaned = "\n".join(l for l in text.splitlines() if not l.startswith("#")).strip()
+    cleaned = '\n'.join(l for l in text.splitlines() if not l.startswith('#')).strip()
     if cleaned:
       p.parent.mkdir(parents=True, exist_ok=True)
       p.write_text(cleaned)
@@ -86,7 +86,7 @@ class UnderEvaluationEvent:
 
   @property
   def annotation(self) -> str:
-    return self._read_tsv("note")
+    return self._read_tsv('note')
 
   @annotation.setter
   def annotation(self, value: str):
@@ -96,9 +96,9 @@ class UnderEvaluationEvent:
 @cache
 def exam_date() -> str:
   """Date of the most recent exam, derived from the latest iscrizioni XLS stem (YYMMDD)."""
-  files = sorted((config.HISTORY_DIR / "iscrizioni").glob("*.xls"))
+  files = sorted((config.HISTORY_DIR / 'iscrizioni').glob('*.xls'))
   if not files:
-    raise RuntimeError(f"No iscrizioni XLS files found in {config.HISTORY_DIR}/iscrizioni")
+    raise RuntimeError(f'No iscrizioni XLS files found in {config.HISTORY_DIR}/iscrizioni')
   return files[-1].stem
 
 
@@ -112,53 +112,53 @@ def all_students() -> dict[str, Student]:
   current_date = exam_date()
 
   # ── iscrizioni ────────────────────────────────────────────────────────────
-  for xls in sorted((config.HISTORY_DIR / "iscrizioni").glob("*.xls")):
+  for xls in sorted((config.HISTORY_DIR / 'iscrizioni').glob('*.xls')):
     date = xls.stem
-    df = pd.read_excel(xls, header=0, converters={"Matricola": str})
+    df = pd.read_excel(xls, header=0, converters={'Matricola': str})
     for _, row in df.iterrows():
-      mat = str(row["Matricola"]).strip()
-      if "0000" in mat:
+      mat = str(row['Matricola']).strip()
+      if '0000' in mat:
         continue
-      email = str(row["Email"]).split("@")[0]
+      email = str(row['Email']).split('@')[0]
       mat2email[mat] = email
       email2mat[email] = mat
       enrollments.setdefault(email, set()).add(date)
-      if email not in names and "Cognome" in df.columns:
-        names[email] = f"{row['Cognome']} {row['Nome']}".strip()
+      if email not in names and 'Cognome' in df.columns:
+        names[email] = f'{row["Cognome"]} {row["Nome"]}'.strip()
 
   # ── verbali ───────────────────────────────────────────────────────────────
   results: dict[str, dict[str, Mark]] = {}
 
-  for xls in sorted((config.HISTORY_DIR / "verbali").glob("*.xls")):
+  for xls in sorted((config.HISTORY_DIR / 'verbali').glob('*.xls')):
     df = pd.read_excel(xls, header=0)
-    prog2 = df[df["Descrizione insegnamento"] == "PROGRAMMAZIONE II"]
+    prog2 = df[df['Descrizione insegnamento'] == 'PROGRAMMAZIONE II']
     for _, row in prog2.iterrows():
-      mat = str(row["Matricola"]).strip()
+      mat = str(row['Matricola']).strip()
       email = mat2email.get(mat)
       if not email:
         continue
       try:
-        mark = Mark.from_verbale(str(row["Voto"]), str(row["Stato Esito"]))
+        mark = Mark.from_verbale(str(row['Voto']), str(row['Stato Esito']))
       except ValueError:
         continue
-      results.setdefault(email, {})[row["Data appello"].strftime("%y%m%d")] = mark
+      results.setdefault(email, {})[row['Data appello'].strftime('%y%m%d')] = mark
       if email not in names:
-        names[email] = str(row["Nominativo studente"]).strip()
+        names[email] = str(row['Nominativo studente']).strip()
 
   # ── notes (all dates — current-date long notes are still read live) ───────
   notes: dict[str, dict[str, str]] = {}
-  for note_file in config.EVALS_DIR.glob("*/notes/*.md"):
+  for note_file in config.EVALS_DIR.glob('*/notes/*.md'):
     date = note_file.parent.parent.name
     email = note_file.stem
     notes.setdefault(email, {})[date] = note_file.read_text()
 
   # ── current marks.tsv ─────────────────────────────────────────────────────
   current_rows: dict[str, dict] = {}
-  marks_path = config.EVALS_DIR / current_date / "marks.tsv"
+  marks_path = config.EVALS_DIR / current_date / 'marks.tsv'
   if marks_path.exists():
-    df = pd.read_csv(marks_path, sep="\t", na_filter=False)
+    df = pd.read_csv(marks_path, sep='\t', na_filter=False)
     for _, row in df.iterrows():
-      current_rows[str(row["email"])] = row.to_dict()
+      current_rows[str(row['email'])] = row.to_dict()
 
   # ── assemble ──────────────────────────────────────────────────────────────
   all_emails = enrollments.keys() | results.keys() | notes.keys()
@@ -187,8 +187,8 @@ def all_students() -> dict[str, Student]:
 
     students[email] = Student(
       email=email,
-      matricola=email2mat.get(email, ""),
-      name=names.get(email, ""),
+      matricola=email2mat.get(email, ''),
+      name=names.get(email, ''),
       events=events,
     )
 

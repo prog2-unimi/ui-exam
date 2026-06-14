@@ -2,6 +2,7 @@
 # Copyright (C) 2026  Massimo Santini
 
 import dataclasses
+from datetime import date, datetime
 from functools import cache
 from pathlib import Path
 
@@ -84,7 +85,7 @@ class UnderEvaluationMark:
 class UnderEvaluationEvent:
   """Enrolled in current exam with source turned in — reads/writes live via mark."""
 
-  def __init__(self, email: str, date: str, row: dict) -> None:
+  def __init__(self, email: str, date: date, row: dict) -> None:
     self.date = date
     self.metrics = Metrics.from_row(row)
     self.mark = UnderEvaluationMark(email)
@@ -169,18 +170,19 @@ def all_students() -> dict[str, Student]:
     )
 
     events = []
-    for date in sorted(all_dates, reverse=True):
-      if date in results.get(email, {}):
+    for d_str in sorted(all_dates, reverse=True):
+      d = datetime.strptime(d_str, '%y%m%d').date()
+      if d_str in results.get(email, {}):
         events.append(
           ExamEvent(
-            date=date,
-            mark=dataclasses.replace(results[email][date], note=notes.get(email, {}).get(date)),
+            date=d,
+            mark=dataclasses.replace(results[email][d_str], note=notes.get(email, {}).get(d_str)),
           )
         )
-      elif date == current_date and email in current_rows:
-        events.append(UnderEvaluationEvent(email, date, current_rows[email]))
+      elif d_str == current_date and email in current_rows:
+        events.append(UnderEvaluationEvent(email, d, current_rows[email]))
       else:
-        events.append(ExamEvent(date=date, mark=None))
+        events.append(ExamEvent(date=d, mark=None))
 
     students[email] = Student(
       email=email,

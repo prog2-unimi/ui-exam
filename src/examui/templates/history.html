@@ -9,9 +9,9 @@
 {% block header %}
 <select id="date-filter" class="form-select form-select-sm w-auto flex-shrink-0">
   <option value="">All exam dates</option>
-  <option value="{{ current_date }}">▶ {{ current_date[:2] }}-{{ current_date[2:4] }}-{{ current_date[4:] }}</option>
+  <option value="{{ current_date }}">▶ {{ current_date }}</option>
   {% for date in exam_dates %}
-  <option value="{{ date }}">{{ date[:2] }}-{{ date[2:4] }}-{{ date[4:] }}</option>
+  <option value="{{ date }}">{{ date }}</option>
   {% endfor %}
 </select>
 <select id="kind-filter" class="form-select form-select-sm w-auto flex-shrink-0">

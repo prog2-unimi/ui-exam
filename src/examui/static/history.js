@@ -1,4 +1,4 @@
-const fmtDate = (d) => d ? `${d.slice(0,2)}-${d.slice(2,4)}-${d.slice(4)}` : '';
+const fmtDate = (d) => d || '';
 
 const _activeEmail = (JSON.parse(sessionStorage.getItem('examTimer') || 'null') || {}).email || null;
 

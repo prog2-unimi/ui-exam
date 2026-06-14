@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ class Mark:
 
 @dataclass(frozen=True)
 class ExamEvent:
-  date: str
+  date: date
   mark: Mark | None
 
 
@@ -88,18 +88,18 @@ class Student:
     return sum(1 for e in self.events if not isinstance(e, ExamEvent) or e.mark is not None)
 
   @property
-  def first(self) -> str:
-    return self.events[-1].date if self.events else ''
+  def first(self) -> date | None:
+    return self.events[-1].date if self.events else None
 
   @property
-  def last(self) -> str:
-    return self.events[0].date if self.events else ''
+  def last(self) -> date | None:
+    return self.events[0].date if self.events else None
 
   @property
-  def first_attempt(self) -> str:
+  def first_attempt(self) -> date | None:
     return next(
       (e.date for e in reversed(self.events) if not isinstance(e, ExamEvent) or e.mark is not None),
-      '',
+      None,
     )
 
   @property

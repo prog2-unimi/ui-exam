@@ -76,7 +76,7 @@
         <div class="list-group-item px-3 py-2">
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <span class="text-muted font-monospace small">
-              20{{ ev.date[:2] }}-{{ ev.date[2:4] }}-{{ ev.date[4:] }}
+              {{ ev.date.strftime('%Y-%m-%d') }}
             </span>
             {% set MARK_CSS = {'respinto': 'bg-danger', 'ritirato': 'bg-orange', 'passato': 'bg-success', 'rifiutato': 'bg-primary'} %}
             {% set MARK_LABEL = {'respinto': 'Respinto', 'ritirato': 'Ritirato'} %}

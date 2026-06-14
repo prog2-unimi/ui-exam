@@ -2,9 +2,9 @@
 # Copyright (C) 2026  Massimo Santini
 
 import dataclasses
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template
+from flask import Blueprint, jsonify, render_template
 from examui import config
 from examui.models.store import all_students, UnderEvaluationEvent
 
@@ -35,4 +35,35 @@ def schedule():
       }
     )
 
+  unmarked = [r for r in rows if not r['current_mark'] and r['slot']]
+  current_email = unmarked[0]['email'] if unmarked else None
+  next_email    = unmarked[1]['email'] if len(unmarked) > 1 else None
+  for r in rows:
+    r['is_current'] = r['email'] == current_email
+    r['is_next']    = r['email'] == next_email
+
   return render_template('schedule.html', rows=rows, today=today)
+
+
+@bp.get('/api/pace')
+def pace():
+  now = config.now()
+  slot_delta = timedelta(minutes=config.SLOT_MINUTES)
+  with_slots = [
+    s.events[0]
+    for s in all_students().values()
+    if s.events
+    and isinstance(s.events[0], UnderEvaluationEvent)
+    and s.events[0].metrics.slot is not None
+  ]
+  if not with_slots:
+    return jsonify(has_slots=False)
+  expected_done = sum(1 for ev in with_slots if ev.metrics.slot + slot_delta <= now)
+  actual_done = sum(1 for ev in with_slots if ev.mark.provisional)
+  return jsonify(
+    has_slots=True,
+    delta=(actual_done - expected_done) * config.SLOT_MINUTES,
+    done=actual_done,
+    expected=expected_done,
+    total=len(with_slots),
+  )

@@ -6,6 +6,12 @@ from os import environ
 from pathlib import Path
 
 TODAY = environ.get('TODAY', datetime.now().strftime('%y%m%d'))
+
+def now() -> datetime:
+  override = environ.get('NOW')
+  if override:
+    return datetime.strptime(TODAY + override, '%y%m%d%H%M')
+  return datetime.now()
 HISTORY_DIR = Path(environ['HISTORY_DIR'])
 EVALS_DIR = Path(environ['EVALS_DIR'])
 STUDENT_BASE = Path(environ['STUDENT_BASE'])

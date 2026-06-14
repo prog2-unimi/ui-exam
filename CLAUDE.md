@@ -15,6 +15,12 @@ source .envrc   # or: direnv allow
 
 Runs gunicorn with `--workers=1 --reload`. Expects `HISTORY_DIR`, `EVALS_DIR`, `STUDENT_BASE` in the environment (see `.envrc.example`). `SLOT_MINUTES` defaults to 30. `TODAY` defaults to today's date (`YYMMDD`); override to pin which day's oral slots are shown in the schedule view.
 
+`NOW` (`HHMM`) overrides the current time used by `/api/pace`. Combined with `TODAY` this lets you simulate any point during the exam day without touching real data:
+
+```bash
+TODAY=260615 NOW=1145 ./bin/debug
+```
+
 ### Remote access via SSH tunnel
 
 `./bin/server` is the `command=` entry in `~/.ssh/authorized_keys` on the exam host:
@@ -191,6 +197,10 @@ R/W live properties:
 
 Has `date: str`, `metrics: Metrics` (frozen, from marks.tsv row at build time), and `mark: UnderEvaluationMark` (live I/O proxy). Inserted as `events[0]` in `Student.events` for current-exam students with source.
 
+#### `config.now()` — injectable current time
+
+Returns `datetime.now()` unless the `NOW` env var (`HHMM`) is set, in which case it builds a datetime from `TODAY + NOW`. Used by `/api/pace` to allow time simulation during development.
+
 #### `exam_date()` — `@cache`
 
 Returns the stem of the most recent iscrizioni XLS (`YYMMDD`).
@@ -267,9 +277,11 @@ All students enrolled at least once (past or current exam). Only `summary_mark` 
 
 Each entry in `students` includes: `email`, `name`, `matricola`, `attempts`, `first`, `last`, `first_attempt`, `in_current` (bool), `dates` (list), `summary_mark` (`dataclasses.asdict(Mark)` or `None`).
 
-### `views/schedule.py` — `GET /schedule`
+### `views/schedule.py` — `GET /schedule` and `GET /api/pace`
 
-All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark` and `current_mark` (from `live.mark.provisional`). Sorted by `slot`. Passes `rows`, `today` (ISO date string) to `schedule.html`.
+All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark` and `current_mark` (from `live.mark.provisional`). Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Passes `rows`, `today` (ISO date string) to `schedule.html`.
+
+`GET /api/pace` — returns schedule pace as JSON. Reads `provisional` live (not cached) for all slotted students. Response: `{has_slots, delta, done, expected, total}`. `delta = (done - expected) × SLOT_MINUTES` in minutes; positive = ahead, negative = behind. Uses `config.now()` so `NOW` env override applies.
 
 ### `views/student.py` — per-student routes
 
@@ -286,6 +298,8 @@ Templates live at `src/examui/templates/`. Static files live at `src/examui/stat
 
 ### `base.html`
 Bootstrap 5 + Bootstrap Icons CDN. Navigation bar (History / Schedule buttons + Active timer button) is in the shared `base.html` header block — `#active-btn` is rendered here, JS activates it per-page.
+
+Navbar also contains `#wall-clock` (current time, `HH:MM`, updated every second by `common.js`) and `#pace-badge` (ahead/behind indicator, polling `/api/pace` every 60 s). Both are visible on every page. `#pace-badge` is hidden when no slots are booked, when all students are done, or before the first slot's window has passed.
 
 ### `history.html`
 DataTables. `CFG = {students: [...]}`. Filters: date dropdown, kind dropdown (All/Nuovo/Assente/Passato/Rifiutato/Ritirato/Respinto), page-length select, text search. Links to `/student/<email>`. Filter state in `sessionStorage['history-filters']`. Active-timer button handled by `common.js`.
@@ -323,11 +337,15 @@ Shared across all pages. Defines `renderMark(vm, cm)`:
 
 Also activates `#active-btn` (defined in `base.html`) for all pages using `sessionStorage['examTimer']`.
 
+Drives `#wall-clock` (ticks every second) and `#pace-badge` (polls `/api/pace` every 60 s). Badge shows `+Xm` (green) when ahead or `-Xm` (red) when behind; hidden when irrelevant.
+
 ### `static/history.js`
 DataTables for history list. Uses `renderMark(row.summary_mark, row.in_current ? '' : undefined)`. Filter state in `sessionStorage['history-filters']` — persists `date`, `kind`, `order`, `search`, `pageLen`. Kind filter options: `nuovo` (in current, no summary_mark), `assente` (no summary_mark), or match `summary_mark.kind`.
 
 ### `static/schedule.js`
 DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. `iconFail(val)` / `iconCycles(val)` — Bootstrap Icons for tests/javadoc/cycles. "Today only" filter: `row.slot && row.slot.startsWith(CFG.today)`. "New only" filter: `row.summary_mark === null`. Active-timer button from `common.js`.
+
+`createdRow` adds `table-warning` for the active-timer student. The name cell render prepends `bi-caret-right-fill text-primary` for `is_current` and `bi-caret-right text-secondary` for `is_next`; active-timer highlight takes priority over the caret icons.
 
 ### `static/student.js`
 - **Timer**: `sessionStorage['examTimer'] = {email, startMs, slotMs}`. Progress bar at 80/90/95%. Slot duration editable via `#slot-input`.

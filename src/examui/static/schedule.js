@@ -35,7 +35,12 @@ const table = new DataTable('#schedule-table', {
   columns: [
     { data: 'slot',    render: fmtSlot },
     { data: 'name',
-      render: (d, _, row) => `<a href="/student/${row.email}">${d}</a>` },
+      render: (d, _, row) => {
+        const icon = row.is_current ? '<i class="bi bi-caret-right-fill text-primary me-1"></i>'
+                   : row.is_next    ? '<i class="bi bi-caret-right text-secondary me-1"></i>'
+                   : '';
+        return `${icon}<a href="/student/${row.email}">${d}</a>`;
+      }},
     { data: null, orderable: false,
       render: (_, __, row) => renderMark(row.summary_mark, row.current_mark) },
     { data: 'tests_fail',   className: 'text-center', render: iconFail },

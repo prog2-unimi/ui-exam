@@ -37,8 +37,7 @@ def save_note(email):
   live = _live(email)
   if not live:
     return jsonify(ok=False, error='not enrolled'), 404
-  live.annotation = request.form.get('annotation', '')
-  live.mark.note = request.form.get('long_note', '')
+  live.mark.note = request.form.get('note', '')
   return jsonify(ok=True)
 
 
@@ -47,7 +46,7 @@ def save_mark(email):
   live = _live(email)
   if not live:
     return jsonify(ok=False, error='not enrolled'), 404
-  live.mark.provisional = request.form['mark']
+  live.mark.save(request.form.get('mark', ''), request.form.get('annotation', ''))
   return jsonify(ok=True)
 
 

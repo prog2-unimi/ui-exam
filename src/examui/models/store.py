@@ -12,45 +12,20 @@ from examui.models.events import ExamEvent, Mark, Metrics, Student
 
 
 class UnderEvaluationMark:
-  def __init__(self, event: 'UnderEvaluationEvent') -> None:
-    self._event = event
-
-  @property
-  def provisional(self) -> str:
-    return self._event._read_tsv('mark')
-
-  @provisional.setter
-  def provisional(self, value: str):
-    self._event._write_tsv(mark=value)
-
-  @property
-  def note(self) -> str:
-    return self._event._read_md()
-
-  @note.setter
-  def note(self, text: str):
-    self._event._write_md(text)
-
-
-class UnderEvaluationEvent:
-  """Enrolled in current exam with source turned in — reads/writes live."""
-
-  def __init__(self, email: str, date: str, row: dict) -> None:
+  def __init__(self, email: str) -> None:
     self._email = email
-    self.date = date
-    self.metrics = Metrics.from_row(row)
 
   def _marks_path(self) -> Path:
-    return config.EVALS_DIR / exam_date() / 'marks.tsv'
+    path = config.EVALS_DIR / exam_date() / 'marks.tsv'
+    if not path.exists():
+      raise RuntimeError(f'marks.tsv not found at {path}')
+    return path
 
   def _note_path(self) -> Path:
     return config.EVALS_DIR / exam_date() / 'notes' / f'{self._email}.md'
 
-  def _read_tsv(self, field: str, default: str = '') -> str:
-    path = self._marks_path()
-    if not path.exists():
-      return default
-    df = pd.read_csv(path, sep='\t', na_filter=False)
+  def _read_tsv(self, field: str) -> str:
+    df = pd.read_csv(self._marks_path(), sep='\t', na_filter=False)
     row = df[df['email'] == self._email]
     if row.empty:
       raise RuntimeError(f'{self._email} not in marks.tsv')
@@ -58,8 +33,6 @@ class UnderEvaluationEvent:
 
   def _write_tsv(self, **kwargs: str) -> None:
     path = self._marks_path()
-    if not path.exists():
-      raise RuntimeError(f'marks.tsv not found at {path} — exam not yet prepared')
     df = pd.read_csv(path, sep='\t', na_filter=False)
     if self._email not in df['email'].values:
       raise RuntimeError(f'{self._email} not in marks.tsv')
@@ -81,8 +54,12 @@ class UnderEvaluationEvent:
       p.unlink()
 
   @property
-  def mark(self) -> UnderEvaluationMark:
-    return UnderEvaluationMark(self)
+  def provisional(self) -> str:
+    return self._read_tsv('mark')
+
+  @provisional.setter
+  def provisional(self, value: str):
+    self._write_tsv(mark=value)
 
   @property
   def annotation(self) -> str:
@@ -91,6 +68,27 @@ class UnderEvaluationEvent:
   @annotation.setter
   def annotation(self, value: str):
     self._write_tsv(note=value)
+
+  def save(self, provisional: str, annotation: str) -> None:
+    self._write_tsv(mark=provisional, note=annotation)
+
+  @property
+  def note(self) -> str:
+    return self._read_md()
+
+  @note.setter
+  def note(self, text: str):
+    self._write_md(text)
+
+
+class UnderEvaluationEvent:
+  """Enrolled in current exam with source turned in — reads/writes live via mark."""
+
+  def __init__(self, email: str, date: str, row: dict) -> None:
+    self.date = date
+    self.metrics = Metrics.from_row(row)
+    self.mark = UnderEvaluationMark(email)
+
 
 
 @cache

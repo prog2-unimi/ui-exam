@@ -48,7 +48,7 @@
     <li class="nav-item">
       <button id="note-tab" class="nav-link {% if current %}active{% endif %} {% if not current %}disabled{% endif %}"
               data-bs-toggle="tab" data-bs-target="#tab-note" type="button">
-        <i class="bi bi-pencil"></i> Notes
+        <i class="bi bi-pencil"></i> Notes <span id="tab-note-status" class="small"></span>
       </button>
     </li>
     <li class="nav-item">
@@ -110,16 +110,14 @@
         <label class="form-label mb-0 small text-muted flex-shrink-0" for="mark-input">Mark</label>
         <input id="mark-input" type="text" value="{{ cm if cm and cm != 'AS' else '' }}"
                class="form-control form-control-sm" style="width:6rem;">
-        <span id="mark-status" class="small"></span>
       </div>
       <div class="d-flex align-items-center gap-2 flex-shrink-0">
-        <label class="form-label mb-0 small text-muted flex-shrink-0" for="short-note-input">Note</label>
-        <input id="short-note-input" type="text"
-               value="{{ current.annotation if current else '' }}"
+        <label class="form-label mb-0 small text-muted flex-shrink-0" for="annotation-input">Note</label>
+        <input id="annotation-input" type="text"
+               value="{{ current.mark.annotation if current else '' }}"
                class="form-control form-control-sm flex-grow-1">
-        <span id="note-status" class="small"></span>
       </div>
-      <textarea id="long-note-editor" class="form-control flex-grow-1"
+      <textarea id="note-editor" class="form-control flex-grow-1"
                 style="resize: none; font-family: monospace; font-size: .9rem;">{{ current.mark.note if current else '' }}</textarea>
       </div>
     </div>

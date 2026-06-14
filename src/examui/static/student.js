@@ -85,13 +85,8 @@ if (document.getElementById('timer-btn')) {
   })();
 }
 
-// ── Note save (short + long, single endpoint) ─────────────────────────────────
-const longNoteEditor  = document.getElementById('long-note-editor');
-const shortNoteInput  = document.getElementById('short-note-input');
-const noteStatus      = document.getElementById('note-status');
-let savedLongNote     = longNoteEditor ? longNoteEditor.value : '';
-let savedShortNote    = shortNoteInput ? shortNoteInput.value : '';
-let noteTimer         = null;
+// ── Shared note status (tab label indicator) ──────────────────────────────────
+const noteStatus = document.getElementById('tab-note-status');
 
 function setNoteStatus(text, color) {
   if (!noteStatus) return;
@@ -99,57 +94,59 @@ function setNoteStatus(text, color) {
   noteStatus.style.color = color;
 }
 
+// ── Note save (markdown → /api/<email>/note) ──────────────────────────────────
+const noteEditor = document.getElementById('note-editor');
+let savedNote    = noteEditor ? noteEditor.value : '';
+let noteTimer    = null;
+
 function saveNote() {
-  if (!longNoteEditor) return;
-  if (longNoteEditor.value === savedLongNote && shortNoteInput.value === savedShortNote) return;
+  if (!noteEditor) return;
+  if (noteEditor.value === savedNote) return;
+  setNoteStatus('•', 'var(--bs-secondary)');
   const fd = new FormData();
-  fd.append('long_note',  longNoteEditor.value);
-  fd.append('annotation', shortNoteInput ? shortNoteInput.value : '');
+  fd.append('note', noteEditor.value);
   fetch(CFG.urls.saveNote, { method: 'POST', body: fd })
     .then(() => {
-      savedLongNote  = longNoteEditor.value;
-      savedShortNote = shortNoteInput ? shortNoteInput.value : '';
+      savedNote = noteEditor.value;
       setNoteStatus('✓', 'var(--bs-success)');
       setTimeout(() => setNoteStatus('', ''), 1500);
     });
 }
 
-if (longNoteEditor) {
-  longNoteEditor.addEventListener('input', () => {
+if (noteEditor) {
+  noteEditor.addEventListener('input', () => {
     setNoteStatus('•', 'var(--bs-secondary)');
     clearTimeout(noteTimer);
     noteTimer = setTimeout(saveNote, 2000);
   });
-  longNoteEditor.addEventListener('blur', () => { clearTimeout(noteTimer); saveNote(); });
-}
-
-if (shortNoteInput) {
-  shortNoteInput.addEventListener('input', () => {
-    setNoteStatus('•', 'var(--bs-secondary)');
-    clearTimeout(noteTimer);
-    noteTimer = setTimeout(saveNote, 2000);
+  noteEditor.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { clearTimeout(noteTimer); setTimeout(saveNote, 0); }
   });
-  shortNoteInput.addEventListener('blur', () => { clearTimeout(noteTimer); saveNote(); });
-  shortNoteInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); shortNoteInput.blur(); } });
+  noteEditor.addEventListener('blur', () => { clearTimeout(noteTimer); saveNote(); });
 }
 
-// ── Mark save ────────────────────────────────────────────────────────────────
-const markInput  = document.getElementById('mark-input');
-const markStatus = document.getElementById('mark-status');
+// ── Mark + annotation save (both → TSV via /api/<email>/mark) ────────────────
+const markInput       = document.getElementById('mark-input');
+const annotationInput = document.getElementById('annotation-input');
 
 if (markInput) {
   function saveMark() {
+    setNoteStatus('•', 'var(--bs-secondary)');
     const fd = new FormData();
-    fd.append('mark', markInput.value.trim());
+    fd.append('mark',       markInput.value.trim());
+    fd.append('annotation', annotationInput ? annotationInput.value : '');
     fetch(CFG.urls.saveMark, { method: 'POST', body: fd })
       .then(r => {
-        markStatus.textContent = r.ok ? '✓' : '✗';
-        markStatus.style.color = r.ok ? 'var(--bs-success)' : 'var(--bs-danger)';
-        if (r.ok) setTimeout(() => { markStatus.textContent = ''; }, 1500);
+        setNoteStatus(r.ok ? '✓' : '✗', r.ok ? 'var(--bs-success)' : 'var(--bs-danger)');
+        if (r.ok) setTimeout(() => setNoteStatus('', ''), 1500);
       });
   }
   markInput.addEventListener('blur', saveMark);
   markInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); markInput.blur(); } });
+  if (annotationInput) {
+    annotationInput.addEventListener('blur', saveMark);
+    annotationInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); annotationInput.blur(); } });
+  }
 }
 
 // ── Source navigator ─────────────────────────────────────────────────────────

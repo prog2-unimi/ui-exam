@@ -1,0 +1,9 @@
+{
+  "defaultMode": "plan",
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(**)"
+    ]
+  }
+}

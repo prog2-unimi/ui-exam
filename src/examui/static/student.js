@@ -373,11 +373,13 @@ document.querySelector('[data-bs-target="#tab-source"]')
 
 // ── Dependency graph ─────────────────────────────────────────────────────────
 let _depsPathToNid = {};   // relpath → nid, populated after deps loads
+let _depsNodeFill  = {};   // nid → original kind fill
 
 function _highlightDepsNode(relpath) {
-  // Clear previous highlight
-  document.querySelectorAll('#deps-container .node polygon, #deps-container .node ellipse')
-    .forEach(el => el.setAttribute('fill', 'white'));
+  // Restore all nodes to their kind fill
+  Object.entries(_depsNodeFill).forEach(([nid, fill]) => {
+    document.getElementById(nid)?.querySelector('polygon, ellipse')?.setAttribute('fill', fill);
+  });
   if (!relpath) return;
   const nid = _depsPathToNid[relpath];
   if (!nid) return;
@@ -421,8 +423,11 @@ async function loadDepsGraph() {
   }
 
   _depsPathToNid = {};
+  _depsNodeFill  = {};
   Object.entries(data.paths).forEach(([nid, relpath]) => {
     _depsPathToNid[relpath] = nid;
+    const shape = document.getElementById(nid)?.querySelector('polygon, ellipse');
+    if (shape) _depsNodeFill[nid] = shape.getAttribute('fill');
     const el = document.getElementById(nid);
     if (!el) return;
     el.style.cursor = 'pointer';

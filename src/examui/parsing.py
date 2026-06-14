@@ -269,14 +269,15 @@ def symbols(text: str) -> list[dict]:
   return out
 
 
-def class_uses(text: str) -> tuple[str, str, dict[str, set[str]], int]:
+def class_uses(text: str) -> tuple[str, str, dict[str, set[str]], int, str]:
   """Parse Java source and return dependency information.
 
-  Returns (package, simple_class_name, uses, symbol_count) where
+  Returns (package, simple_class_name, uses, symbol_count, kind) where
   uses = {'member': set[FQN], 'parameter': set[FQN], 'return': set[FQN],
           'inherits': set[FQN], 'bound': set[FQN],
-          'local': set[FQN], 'instantiates': set[FQN]}.
-  Returns ('', '', empty_uses, 0) if no top-level class/interface/enum/record found.
+          'local': set[FQN], 'instantiates': set[FQN]}
+  and kind is one of 'class', 'abstract', 'interface', 'enum', 'record'.
+  Returns ('', '', empty_uses, 0, '') if no top-level type declaration found.
   """
   _empty_uses: dict[str, set[str]] = {
     'member': set(),
@@ -301,13 +302,28 @@ def class_uses(text: str) -> tuple[str, str, dict[str, set[str]], int]:
     None,
   )
   if not top:
-    return package, '', _empty_uses, 0
+    return package, '', _empty_uses, 0, ''
 
   name_node = top.child_by_field_name('name')
   if not name_node:
-    return package, '', _empty_uses, 0
+    return package, '', _empty_uses, 0, ''
 
   simple = src[name_node.start_byte : name_node.end_byte].decode()
+
+  _KIND_MAP = {
+    'interface_declaration': 'interface',
+    'enum_declaration':      'enum',
+    'record_declaration':    'record',
+  }
+  if top.type in _KIND_MAP:
+    kind = _KIND_MAP[top.type]
+  else:
+    mods = top.child_by_field_name('modifiers')
+    is_abstract = mods and any(
+      src[c.start_byte : c.end_byte].decode() == 'abstract' for c in mods.children
+    )
+    kind = 'abstract' if is_abstract else 'class'
+
   uses: dict[str, set[str]] = {
     'member': set(),
     'parameter': set(),
@@ -319,4 +335,4 @@ def class_uses(text: str) -> tuple[str, str, dict[str, set[str]], int]:
   }
   _walk_uses(tree.root_node, src, package, imports, uses)
   sym_count = len(symbols(text))
-  return package, simple, uses, sym_count
+  return package, simple, uses, sym_count, kind

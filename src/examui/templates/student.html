@@ -173,6 +173,11 @@
       <div id="deps-loading" class="position-absolute top-50 start-50 translate-middle text-muted" style="display:none;">
         Computing dependencies…
       </div>
+      <div class="position-absolute top-0 start-0 m-2 p-2 bg-white border rounded small" style="line-height:1.8; font-size:.72rem;">
+        {% for kind, color in [('class','white'),('abstract','#f0f0f0'),('interface','#ddeeff'),('record','#ddffdd'),('enum','#fde8d0')] %}
+        <div><span class="d-inline-block border me-1" style="width:11px;height:11px;background:{{ color }};"></span>{{ kind }}</div>
+        {% endfor %}
+      </div>
     </div>
 
     {# ── Javadoc ───────────────────────────────────────────────────────────── #}

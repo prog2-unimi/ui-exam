@@ -166,7 +166,7 @@ def _trivial_rel_paths(root: Path) -> set[str]:
       continue
     try:
       text = f.read_text(errors='replace')
-      pkg, simple, uses, _ = parsing.class_uses(text)
+      pkg, simple, uses, _, _kind = parsing.class_uses(text)
       if not simple:
         continue
       fqn = f'{pkg}.{simple}' if pkg else simple
@@ -318,7 +318,7 @@ def deps(email: str) -> dict:
   all_parsed: dict[str, dict] = {}
   for f in java_files:
     text = f.read_text(errors='replace')
-    pkg, simple, uses, sym_count = parsing.class_uses(text)
+    pkg, simple, uses, sym_count, kind = parsing.class_uses(text)
     if not simple:
       continue
     fqn = f'{pkg}.{simple}' if pkg else simple
@@ -327,6 +327,7 @@ def deps(email: str) -> dict:
       'path': str(f.relative_to(root)),
       'uses': uses,
       'sym_count': sym_count,
+      'kind': kind,
       'trivial': _is_trivial(simple, uses),
     }
 
@@ -359,6 +360,14 @@ def deps(email: str) -> dict:
   for scc in sccs:
     scc.sort(key=lambda fqn: (out_degree[fqn], class_info[fqn]['sym_count']))
 
+  _KIND_FILL = {
+    'class':     'white',
+    'abstract':  '#f0f0f0',
+    'interface': '#ddeeff',
+    'record':    '#ddffdd',
+    'enum':      '#fde8d0',
+  }
+
   # Build Graphviz graph
   dot = _graphviz.Digraph(
     graph_attr={
@@ -387,7 +396,8 @@ def deps(email: str) -> dict:
       fqn = scc[0]
       info = class_info[fqn]
       nid = _nid(fqn)
-      dot.node(fqn, label=info['name'], id=nid, tooltip=fqn)
+      dot.node(fqn, label=info['name'], id=nid, tooltip=fqn,
+               fillcolor=_KIND_FILL.get(info['kind'], 'white'))
       paths[nid] = info['path']
     else:
       # Multi-node SCC — wrap in a cluster subgraph
@@ -396,7 +406,8 @@ def deps(email: str) -> dict:
         for fqn in scc:
           info = class_info[fqn]
           nid = _nid(fqn)
-          sg.node(fqn, label=info['name'], id=nid, tooltip=fqn)
+          sg.node(fqn, label=info['name'], id=nid, tooltip=fqn,
+                  fillcolor=_KIND_FILL.get(info['kind'], 'white'))
           paths[nid] = info['path']
 
   node_to_scc = {fqn: i for i, scc in enumerate(sccs) for fqn in scc}

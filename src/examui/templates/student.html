@@ -65,6 +65,12 @@
         <i class="bi bi-file-earmark-text"></i> Javadoc
       </button>
     </li>
+    <li class="nav-item">
+      <button id="details-tab-btn" class="nav-link {% if not current %}disabled{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#tab-details" type="button">
+        <i class="bi bi-file-text"></i> Details
+      </button>
+    </li>
   </ul>
 
   <div class="tab-content border border-top-0 rounded-bottom" style="flex: 1 1 0; min-height: 0; overflow: hidden;">
@@ -178,6 +184,17 @@
       {% endif %}
     </div>
 
+    {# ── Details ───────────────────────────────────────────────────────────── #}
+    <div class="tab-pane fade d-flex flex-column p-2 gap-2" id="tab-details">
+      <div class="flex-shrink-0">
+        <select id="details-select" class="form-select form-select-sm">
+          <option value="">Select a file…</option>
+        </select>
+      </div>
+      <pre id="details-content" class="flex-grow-1 overflow-auto m-0 p-2 border rounded"
+           style="font-size:.85rem; white-space: pre-wrap; word-break: break-all;"></pre>
+    </div>
+
   </div>
 </div>
 {% endblock %}
@@ -195,6 +212,8 @@ const CFG = {
     sourceDeps:    {{ url_for('student.source_deps',    email=email) | tojson }},
     sourceSymbols: {{ url_for('student.source_symbols', email=email) | tojson }},
     javadoc:       {{ url_for('student.javadoc',        email=email) | tojson }},
+    computedFiles: {{ url_for('student.computed_files', email=email) | tojson }},
+    computedFile:  {{ url_for('student.computed_file',  email=email) | tojson }},
   },
 };
 </script>

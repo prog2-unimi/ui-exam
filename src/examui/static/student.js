@@ -444,3 +444,31 @@ document.getElementById('deps-tab-btn')
     loadDepsGraph();
     this.removeEventListener('shown.bs.tab', onFirst);
   });
+
+// ── Details (computed files) ──────────────────────────────────────────────────
+async function loadComputedFiles() {
+  const sel = document.getElementById('details-select');
+  if (!sel) return;
+  const resp  = await fetch(CFG.urls.computedFiles);
+  const files = await resp.json();
+  sel.innerHTML = '<option value="">Select a file…</option>' +
+    files.map(f => `<option value="${f}">${f}</option>`).join('');
+}
+
+async function loadComputedFile(name) {
+  const el = document.getElementById('details-content');
+  if (!el) return;
+  if (!name) { el.textContent = ''; return; }
+  el.textContent = 'Loading…';
+  const resp = await fetch(CFG.urls.computedFile + '?name=' + encodeURIComponent(name));
+  el.textContent = resp.ok ? await resp.text() : '(Error loading file)';
+}
+
+document.getElementById('details-tab-btn')?.addEventListener('shown.bs.tab', function onFirst() {
+  loadComputedFiles();
+  this.removeEventListener('shown.bs.tab', onFirst);
+});
+
+document.getElementById('details-select')?.addEventListener('change', function() {
+  loadComputedFile(this.value);
+});

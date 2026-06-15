@@ -117,3 +117,29 @@ def source_file(email):
   if data is None:
     return 'Not found', 404
   return jsonify(data)
+
+
+@bp.get('/api/<email>/computed/files')
+def computed_files(email):
+  if not _live(email):
+    return jsonify([])
+  d = config.STUDENT_BASE / email / 'computed'
+  if not d.exists():
+    return jsonify([])
+  return jsonify(sorted(f.name for f in d.iterdir() if f.is_file()))
+
+
+@bp.get('/api/<email>/computed/file')
+def computed_file(email):
+  if not _live(email):
+    return 'Not found', 404
+  name = request.args.get('name', '')
+  if not name or '/' in name or name.startswith('.'):
+    return 'Invalid', 400
+  root = (config.STUDENT_BASE / email / 'computed').resolve()
+  path = (root / name).resolve()
+  if not str(path).startswith(str(root)):
+    return 'Forbidden', 403
+  if not path.exists():
+    return 'Not found', 404
+  return path.read_text(errors='replace'), 200, {'Content-Type': 'text/plain; charset=utf-8'}

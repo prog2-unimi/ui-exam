@@ -42,10 +42,13 @@ def schedule():
     r['is_current'] = r['email'] == current_email
     r['is_next']    = r['email'] == next_email
 
+  slot_dates = sorted({r['slot'][:10] for r in rows if r['slot']})
+
   return render_template(
     'schedule.html',
     rows=rows,
     today=today,
+    slot_dates=slot_dates,
     email_domain=config.EMAIL_DOMAIN,
     teacher_email=config.TEACHER_EMAIL,
     teacher_name=config.TEACHER_NAME,

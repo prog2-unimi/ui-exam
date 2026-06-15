@@ -58,6 +58,7 @@ const table = new DataTable('#schedule-table', {
                    : '';
         return `${icon}<a href="/student/${row.email}">${d}</a>`;
       }},
+    { data: 'matricola' },
     { data: null, orderable: false,
       render: (_, __, row) => renderMark(row.summary_mark, row.current_mark) },
     { data: 'tests_fail',   className: 'text-center', render: iconFail },
@@ -72,14 +73,16 @@ const table = new DataTable('#schedule-table', {
 });
 
 DataTable.ext.search.push((_settings, _data, _idx, row) => {
-  if (document.getElementById('today-filter').checked && !(row.slot && row.slot.startsWith(CFG.today))) return false;
+  const date = document.getElementById('date-filter').value;
+  if (date === '__unbooked__' && row.slot) return false;
+  else if (date && date !== '__unbooked__' && !(row.slot && row.slot.startsWith(date))) return false;
   if (document.getElementById('new-filter').checked && row.summary_mark !== null) return false;
   return true;
 });
 
 table.draw();
 
-document.getElementById('today-filter').addEventListener('change', () => table.draw());
+document.getElementById('date-filter').addEventListener('change', () => table.draw());
 document.getElementById('new-filter').addEventListener('change', () => table.draw());
 
 document.getElementById('dt-search').addEventListener('input', function() {

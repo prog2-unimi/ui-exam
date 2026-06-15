@@ -1,0 +1,17 @@
+[paths]
+history_dir  = "/path/to/exams/history"
+evals_dir    = "/path/to/exams/evals"
+student_base = "/path/to/exams/students"
+
+[exam]
+slot_minutes     = 30
+trivial_packages = ["client", "clients", "util", "utils"]
+course_name      = "Programmazione II"
+course_degree    = "Informatica"
+
+[actions]
+teacher_email  = "teacher@example.com"
+teacher_name   = "Name Surname"
+subject_prefix = "[Prog2E] "
+email_domain   = "students.university.edu"
+titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]

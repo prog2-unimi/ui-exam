@@ -1,9 +1,10 @@
-.envrc
-.venv/
 __pycache__/
+.DS_Store
+.envrc
+.gunicorn.pid
+.venv/
+*.egg-info/
 *.pyc
 *.pyo
-*.egg-info/
+config.toml
 dist/
-.DS_Store
-.gunicorn.pid

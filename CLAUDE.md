@@ -4,6 +4,39 @@
 
 Flask web application used during oral exams for PROGRAMMAZIONE II. It shows each student's exam history, lets the examiner take notes and record a provisional mark, and displays the student's submitted Java source code (with syntax highlighting, symbol navigation, dependency graph, and Javadoc).
 
+## Configuration
+
+All stable configuration lives in a TOML file pointed to by the `EXAMUI_CONFIG` env var (set in `.envrc`). Copy `config.toml.example` to `config.toml` and fill in your values:
+
+```toml
+[paths]
+history_dir  = "/path/to/exams/history"
+evals_dir    = "/path/to/exams/evals"
+student_base = "/path/to/exams/students"
+
+[exam]
+slot_minutes     = 30
+trivial_packages = ["client", "clients", "util", "utils"]
+course_name      = "Programmazione II"
+course_degree    = "Informatica"           # optional, for giustifica
+
+[actions]
+teacher_email  = "teacher@example.com"
+teacher_name   = "Name Surname"
+subject_prefix = "[CourseCode] "
+email_domain   = "students.university.edu"
+titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]
+```
+
+`tomllib` (stdlib ≥ 3.11) is used to parse it — no extra dependency.
+
+Two env vars are intentionally kept outside the TOML because they are ephemeral simulation overrides:
+
+| Variable | Format   | Effect |
+|----------|----------|--------|
+| `TODAY`  | `YYMMDD` | Overrides the date used to select the active exam session |
+| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace` |
+
 ## Running
 
 ### Local development
@@ -13,7 +46,7 @@ source .envrc   # or: direnv allow
 ./bin/debug
 ```
 
-Runs gunicorn with `--workers=1 --reload`. Expects `HISTORY_DIR`, `EVALS_DIR`, `STUDENT_BASE` in the environment (see `.envrc.example`). `SLOT_MINUTES` defaults to 30. `TODAY` defaults to today's date (`YYMMDD`); override to pin which day's oral slots are shown in the schedule view.
+Runs gunicorn with `--workers=1 --reload`. The `.envrc` must export `EXAMUI_CONFIG` pointing at a populated `config.toml`. `TODAY` defaults to today's date (`YYMMDD`); override to pin which day's oral slots are shown in the schedule view.
 
 `NOW` (`HHMM`) overrides the current time used by `/api/pace`. Combined with `TODAY` this lets you simulate any point during the exam day without touching real data:
 
@@ -43,6 +76,16 @@ It opens the tunnel, waits for the port to be reachable, launches the browser vi
 
 Single-worker gunicorn is a hard requirement (in-process `@cache`).
 
+### `bin/giustifica` — CLI certificate generator
+
+Generates a giustifica HTML file from the command line via `curl`:
+
+```bash
+./bin/giustifica <email-fragment> <titolo> [inizio] [fine]
+```
+
+Sources `.envrc` for `EXAMUI_PORT` (default `8765`). Accepts a partial email address — the server resolves it to a unique match; prints matching candidates and exits if ambiguous. Saves output as `giustifica-<fragment>.html` in the current directory. Uses `--connect-timeout 5` so a missing server fails immediately with a clear message.
+
 ---
 
 ## Data sources and what they mean
@@ -56,7 +99,7 @@ One XLS per exam session, named `YYMMDD.xls` (the stem is the exam date used eve
 
 ### `HISTORY_DIR/verbali/*.xls`
 
-Registrar verbali. Each row is a student who sat an exam and got a result. Columns include `Matricola`, `Voto` (grade), `Stato Esito` (outcome state), `Data appello` (date), `Descrizione insegnamento`. Only rows where `Descrizione insegnamento == 'PROGRAMMAZIONE II'` are used.
+Registrar verbali. Each row is a student who sat an exam and got a result. Columns include `Matricola`, `Voto` (grade), `Stato Esito` (outcome state), `Data appello` (date), `Descrizione insegnamento`. Only rows where `Descrizione insegnamento` matches `config.COURSE_NAME` (case-insensitive via `casefold()`) are used.
 
 Mark encoding from verbali: handled by `Mark.from_verbale(voto, stato)`. `RE*` → `respinto`, `RI*` → `ritirato`, numeric voto + stato `V` → `passato`, numeric + other → `rifiutato`.
 
@@ -285,7 +328,7 @@ Each entry in `students` includes: `email`, `name`, `matricola`, `attempts`, `fi
 
 ### `views/schedule.py` — `GET /schedule` and `GET /api/pace`
 
-All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark` and `current_mark` (from `live.mark.provisional`). Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Passes `rows`, `today` (ISO date string) to `schedule.html`.
+All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark` and `current_mark` (from `live.mark.provisional`). Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Passes `rows`, `today` (ISO date string), and the `[actions]` config values (`email_domain`, `teacher_email`, `teacher_name`, `subject_prefix`, `titoli`, `slot_minutes`) to `schedule.html`.
 
 `GET /api/pace` — returns schedule pace as JSON. Reads `provisional` live (not cached) for all slotted students. Response: `{has_slots, delta, done, expected, total}`. `delta = (done - expected) × SLOT_MINUTES` in minutes; positive = ahead, negative = behind. Uses `config.now()` so `NOW` env override applies.
 
@@ -294,6 +337,7 @@ All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics
 - `GET /student/<email>` — renders `student.html`. Passes `email`, `name`, `matricola`, `events` (only `ExamEvent` instances — `UnderEvaluationEvent` is excluded), `current` (`UnderEvaluationEvent | None`), `slot_minutes`.
 - `POST /api/<email>/note` — saves `note` (long-form, to `.md` file). Form field: `note`.
 - `POST /api/<email>/mark` — saves both `mark` and `annotation` to marks.tsv via `live.mark.save()`. Form fields: `mark`, `annotation`.
+- `GET /student/<email>/giustifica` — renders a standalone `giustifica.html` certificate page ready for browser print-to-PDF. Query params: `titolo` (required), `inizio` and `fine` (`HH:MM`, optional — default to slot start and slot start + `SLOT_MINUTES`). The `<email>` segment accepts a partial match: if it uniquely identifies one current-exam student the request proceeds; if ambiguous, returns `{"error": "ambiguous", "matches": [...]}` with HTTP 400.
 - Source/Javadoc routes delegate to `source.*` functions.
 
 ---
@@ -314,7 +358,18 @@ DataTables. `CFG = {students: [...]}`. Filters: date dropdown, kind dropdown (Al
 
 ### `schedule.html`
 
-DataTables. `CFG = {rows: [...], today: 'YYYY-MM-DD'}`. Columns: slot, name, mark, tests, javadoc, cyclic, SLOC, docs, files, client SLOC, client files. "Today only" and "New only" checkbox filters. Links to `/student/<email>`. Active-timer button handled by `common.js`.
+DataTables. `CFG = {rows, today, emailDomain, teacherEmail, teacherName, subjectPrefix, slotMinutes, titoli}`. Columns: checkbox, slot, name, mark, tests, javadoc, cyclic, SLOC, docs, files, client SLOC, client files. "Today only" and "New only" checkbox filters. Links to `/student/<email>`. Active-timer button handled by `common.js`.
+
+**Actions dropdown** — enabled when ≥ 1 row is checked:
+
+- **Compose BCC email** — always available when ≥ 1 checked. Opens `mailto:?to=<teacher>&bcc=<students>&subject=<prefix>` in the system mail app. Student addresses are assembled as `<username>@<email_domain>`.
+- **Giustifica** — enabled only when exactly 1 student with a booked slot is checked. Opens a modal to select `titolo` (from `CFG.titoli`) and review/edit `inizio`/`fine` times (pre-filled from the slot; a "Round to hour" button floors inizio and ceils fine). Confirming opens `/student/<email>/giustifica?...` in a new tab.
+
+`syncCheckboxes()` is the single function responsible for updating all checkbox states and enabling/disabling the dropdown and its items; it is called from both `drawCallback` and every individual checkbox/select-all interaction.
+
+### `giustifica.html`
+
+Standalone (does not extend `base.html`). A4 portrait print layout via `@page { size: A4 portrait; margin: 2cm }`. Structure: university logo (`static/logo.jpg`), right-aligned date line (`Milano, DD/MM/YYYY`), body paragraph, right-aligned signature block (label + 2.5 cm gap for handwritten signature + teacher name), fixed footer with department address in a smaller font.
 
 ### `student.html`
 
@@ -362,6 +417,8 @@ DataTables for history list. Uses `renderMark(row.summary_mark, row.in_current ?
 DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. `iconFail(val)` / `iconCycles(val)` — Bootstrap Icons for tests/javadoc/cycles. "Today only" filter: `row.slot && row.slot.startsWith(CFG.today)`. "New only" filter: `row.summary_mark === null`. Active-timer button from `common.js`.
 
 `createdRow` adds `table-warning` for the active-timer student. The name cell render prepends `bi-caret-right-fill text-primary` for `is_current` and `bi-caret-right text-secondary` for `is_next`; active-timer highlight takes priority over the caret icons.
+
+**Selection and Actions**: `selectedEmails` (`Set`) tracks checked rows across redraws. `syncCheckboxes()` is the single point of truth — called from `drawCallback` and all checkbox interactions (individual row and select-all header). It syncs checkbox DOM state, enables/disables the Actions dropdown button (`#actions-btn`, enabled when ≥ 1 selected), and enables/disables the Giustifica item (`#giustifica-action`, enabled only when exactly 1 student with a `slot` is selected).
 
 ### `static/student.js`
 

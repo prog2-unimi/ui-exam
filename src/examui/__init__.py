@@ -31,7 +31,7 @@ def create_app():
 
   @app.get('/')
   def index():
-    return redirect(url_for('history.list_students'))
+    return redirect(url_for('schedule.schedule'))
 
   from pathlib import Path
   from examui.models.store import all_students, UnderEvaluationEvent

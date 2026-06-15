@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
-from flask import Blueprint, render_template, request, jsonify, send_from_directory
+from datetime import datetime, timedelta
+
+from flask import Blueprint, abort, render_template, request, jsonify, send_from_directory
 from examui import config
 from examui.models import source
 from examui.models.events import ExamEvent
@@ -48,6 +50,40 @@ def save_mark(email):
     return jsonify(ok=False, error='not enrolled'), 404
   live.mark.save(request.form.get('mark', ''), request.form.get('annotation', ''))
   return jsonify(ok=True)
+
+
+@bp.get('/student/<email>/giustifica')
+def giustifica(email):
+  titolo = request.args.get('titolo', '')
+  if not titolo:
+    abort(400)
+  students = all_students()
+  if email not in students:
+    matches = [e for e in students if email in e]
+    if len(matches) == 1:
+      email = matches[0]
+    elif matches:
+      return jsonify(error='ambiguous', matches=sorted(matches)), 400
+    else:
+      abort(404)
+  live = _live(email)
+  if not live:
+    abort(404)
+  s = all_students()[email]
+  slot = live.metrics.slot
+  end_slot = slot + timedelta(minutes=config.SLOT_MINUTES) if slot else None
+  return render_template(
+    'giustifica.html',
+    titolo=titolo,
+    nome=s.name,
+    matricola=s.matricola,
+    insegnamento=config.COURSE_NAME,
+    cds=config.COURSE_DEGREE,
+    data=datetime.strptime(config.TODAY, '%y%m%d').strftime('%d/%m/%Y'),
+    inizio=request.args.get('inizio') or (slot.strftime('%H:%M') if slot else ''),
+    fine=request.args.get('fine') or (end_slot.strftime('%H:%M') if end_slot else ''),
+    presidente=config.TEACHER_NAME,
+  )
 
 
 @bp.get('/api/<email>/javadoc/')

@@ -1,3 +1,5 @@
-export HISTORY_DIR="$(realpath "$(pwd)/../exams/history")"
-export EVALS_DIR="$(realpath "$(pwd)/../exams/evals")"
-export STUDENT_BASE="$(realpath "$(pwd)/../exams/so/student")"
+export EXAMUI_CONFIG="$(realpath "$(pwd)/config.toml")"
+
+# Optional overrides for development time simulation:
+# export TODAY=260615
+# export NOW=1145

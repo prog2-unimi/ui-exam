@@ -13,9 +13,42 @@ Given a student's submitted source code and generated Javadoc, it provides:
 > **Note:** This is preliminary software, developed for personal use during exam
 > sessions. Interfaces and data formats may change without notice.
 
-## Usage
+## Configuration
 
-Copy `.envrc.example` to `.envrc`, fill in the paths, then:
+Copy `config.toml.example` to `config.toml` and fill in your values:
+
+```toml
+[paths]
+history_dir  = "/path/to/exams/history"
+evals_dir    = "/path/to/exams/evals"
+student_base = "/path/to/exams/students"
+
+[exam]
+slot_minutes     = 30
+trivial_packages = ["client", "clients", "util", "utils"]
+
+[teacher]
+email = "teacher@example.com"
+name  = "Name Surname"
+
+[students]
+email_domain = "students.university.edu"
+```
+
+Then copy `.envrc.example` to `.envrc` and point `EXAMUI_CONFIG` at your file:
+
+```shell
+export EXAMUI_CONFIG="$(pwd)/config.toml"
+```
+
+Two additional env vars are available for development time simulation (not in the TOML):
+
+| Variable | Format | Effect |
+|----------|--------|--------|
+| `TODAY`  | `YYMMDD` | Overrides the date used to select the active exam session |
+| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace` |
+
+## Usage
 
 ```shell
 direnv allow   # or: source .envrc

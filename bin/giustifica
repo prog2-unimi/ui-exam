@@ -1,0 +1,57 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026  Massimo Santini
+
+set -e
+
+BINDIR="$(dirname "$(realpath "$0")")"
+source "$BINDIR/../.envrc"
+
+: "${EXAMUI_PORT:=8765}"
+BASE="http://localhost:${EXAMUI_PORT}"
+
+usage() {
+  cat >&2 <<EOF
+Usage: $(basename "$0") <email-fragment> <titolo> [inizio] [fine]
+  titolo   e.g. 'lo studente', 'la studentessa', 'il dottore', 'la dottoressa'
+  inizio   HH:MM  (default: booked slot start)
+  fine     HH:MM  (default: booked slot start + slot duration)
+EOF
+  exit 1
+}
+
+[ $# -lt 2 ] && usage
+
+EMAIL="$1"; TITOLO="$2"; INIZIO="${3:-}"; FINE="${4:-}"
+
+TMPFILE=$(mktemp)
+trap "rm -f $TMPFILE" EXIT
+
+CURL_ARGS=(-s --connect-timeout 5 -o "$TMPFILE" -w "%{http_code}" -G "${BASE}/student/${EMAIL}/giustifica"
+  --data-urlencode "titolo=$TITOLO")
+[ -n "$INIZIO" ] && CURL_ARGS+=(--data-urlencode "inizio=$INIZIO")
+[ -n "$FINE"   ] && CURL_ARGS+=(--data-urlencode "fine=$FINE")
+
+STATUS=$(curl "${CURL_ARGS[@]}") || { echo "Cannot reach $BASE — is the server running?" >&2; exit 1; }
+
+case "$STATUS" in
+  200)
+    OUT="giustifica-${EMAIL}.html"
+    cp "$TMPFILE" "$OUT"
+    echo "Saved: $OUT"
+    ;;
+  400)
+    echo "Ambiguous — matches:" >&2
+    python3 -c "import json,sys; [print(' ', m) for m in json.load(sys.stdin)['matches']]" < "$TMPFILE" >&2
+    exit 1
+    ;;
+  404)
+    echo "Student not found or not under evaluation." >&2
+    exit 1
+    ;;
+  *)
+    echo "Error $STATUS:" >&2
+    cat "$TMPFILE" >&2
+    exit 1
+    ;;
+esac

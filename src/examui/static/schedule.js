@@ -21,10 +21,24 @@ function iconCycles(val) {
 
 const _activeEmail = (JSON.parse(sessionStorage.getItem('examTimer') || 'null') || {}).email || null;
 
+const selectedEmails = new Set();
+
+function syncCheckboxes() {
+  document.querySelectorAll('.bcc-check').forEach(cb => {
+    cb.checked = selectedEmails.has(cb.dataset.email);
+  });
+  document.getElementById('actions-btn').disabled = selectedEmails.size === 0;
+  const giustifica = document.getElementById('giustifica-action');
+  const singleWithSlot = selectedEmails.size === 1 &&
+    CFG.rows.some(r => selectedEmails.has(r.email) && r.slot);
+  if (singleWithSlot) giustifica.classList.remove('disabled');
+  else giustifica.classList.add('disabled');
+}
+
 const table = new DataTable('#schedule-table', {
   data: CFG.rows,
   pageLength: 50,
-  order: [[0, 'asc']],
+  order: [[1, 'asc']],
   layout: {
     topStart: null,
     topEnd: null,
@@ -32,7 +46,10 @@ const table = new DataTable('#schedule-table', {
     bottomEnd: 'paging',
   },
   createdRow: (row, data) => { if (data.email === _activeEmail) row.classList.add('table-warning'); },
+  drawCallback: syncCheckboxes,
   columns: [
+    { data: 'email', orderable: false, searchable: false,
+      render: email => `<input type="checkbox" class="bcc-check" data-email="${email}">` },
     { data: 'slot',    render: fmtSlot },
     { data: 'name',
       render: (d, _, row) => {
@@ -71,6 +88,67 @@ document.getElementById('dt-search').addEventListener('input', function() {
 
 document.getElementById('page-len').addEventListener('change', function() {
   table.page.len(parseInt(this.value)).draw();
+});
+
+document.getElementById('schedule-table').addEventListener('click', e => {
+  const cb = e.target.closest('.bcc-check');
+  if (!cb) return;
+  if (cb.checked) selectedEmails.add(cb.dataset.email);
+  else selectedEmails.delete(cb.dataset.email);
+  syncCheckboxes();
+});
+
+document.getElementById('select-all').addEventListener('change', function() {
+  document.querySelectorAll('.bcc-check').forEach(cb => {
+    cb.checked = this.checked;
+    if (this.checked) selectedEmails.add(cb.dataset.email);
+    else selectedEmails.delete(cb.dataset.email);
+  });
+  syncCheckboxes();
+});
+
+document.getElementById('giustifica-action').addEventListener('click', e => {
+  e.preventDefault();
+  const email = [...selectedEmails][0];
+  const row = CFG.rows.find(r => r.email === email);
+  if (!row || !row.slot) return;
+  const slot = new Date(row.slot);
+  const fmt = d => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const endSlot = new Date(slot.getTime() + CFG.slotMinutes * 60000);
+  document.getElementById('giustifica-inizio').value = fmt(slot);
+  document.getElementById('giustifica-fine').value = fmt(endSlot);
+  new bootstrap.Modal(document.getElementById('giustifica-modal')).show();
+});
+
+document.getElementById('giustifica-round').addEventListener('click', () => {
+  const floorHour = v => { const [h] = v.split(':'); return `${h.padStart(2,'0')}:00`; };
+  const ceilHour  = v => { const [h, m] = v.split(':').map(Number);
+    return m === 0 ? v : `${String((h + 1) % 24).padStart(2,'0')}:00`; };
+  const ini = document.getElementById('giustifica-inizio');
+  const fin = document.getElementById('giustifica-fine');
+  if (ini.value) ini.value = floorHour(ini.value);
+  if (fin.value) fin.value = ceilHour(fin.value);
+});
+
+document.getElementById('giustifica-confirm').addEventListener('click', () => {
+  const email = [...selectedEmails][0];
+  const params = new URLSearchParams({
+    titolo: document.getElementById('titolo-select').value,
+    inizio: document.getElementById('giustifica-inizio').value,
+    fine:   document.getElementById('giustifica-fine').value,
+  });
+  window.open(`/student/${email}/giustifica?${params}`, '_blank');
+  bootstrap.Modal.getInstance(document.getElementById('giustifica-modal')).hide();
+});
+
+document.getElementById('bcc-action').addEventListener('click', e => {
+  e.preventDefault();
+  const bcc = [...selectedEmails]
+    .map(e => CFG.emailDomain ? `${e}@${CFG.emailDomain}` : e)
+    .join(',');
+  const to = CFG.teacherName ? `${CFG.teacherName} <${CFG.teacherEmail}>` : CFG.teacherEmail;
+  const qs = `to=${encodeURIComponent(to)}&bcc=${encodeURIComponent(bcc)}&subject=${encodeURIComponent(CFG.subjectPrefix)}`;
+  window.location.href = `mailto:?${qs}`;
 });
 
 window.addEventListener('pageshow', e => { if (e.persisted) table.draw(); });

@@ -42,7 +42,17 @@ def schedule():
     r['is_current'] = r['email'] == current_email
     r['is_next']    = r['email'] == next_email
 
-  return render_template('schedule.html', rows=rows, today=today)
+  return render_template(
+    'schedule.html',
+    rows=rows,
+    today=today,
+    email_domain=config.EMAIL_DOMAIN,
+    teacher_email=config.TEACHER_EMAIL,
+    teacher_name=config.TEACHER_NAME,
+    subject_prefix=config.SUBJECT_PREFIX,
+    titoli=config.TITOLI,
+    slot_minutes=config.SLOT_MINUTES,
+  )
 
 
 @bp.get('/api/pace')

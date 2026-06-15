@@ -129,7 +129,7 @@ def all_students() -> dict[str, Student]:
 
   for xls in sorted((config.HISTORY_DIR / 'verbali').glob('*.xls')):
     df = pd.read_excel(xls, header=0)
-    prog2 = df[df['Descrizione insegnamento'] == 'PROGRAMMAZIONE II']
+    prog2 = df[df['Descrizione insegnamento'].str.casefold() == config.COURSE_NAME.casefold()]
     for _, row in prog2.iterrows():
       mat = str(row['Matricola']).strip()
       email = mat2email.get(mat)

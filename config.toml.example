@@ -9,6 +9,9 @@ trivial_packages = ["client", "clients", "util", "utils"]
 course_name      = "Programmazione II"
 course_degree    = "Informatica"
 
+[vscode]
+tunnel = "tunnelname"
+
 [actions]
 teacher_email  = "teacher@example.com"
 teacher_name   = "Name Surname"

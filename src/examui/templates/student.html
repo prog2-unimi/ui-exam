@@ -145,6 +145,12 @@
         {# toolbar #}
         <div class="d-flex align-items-center gap-2 px-2 py-1 border-bottom bg-body-tertiary flex-shrink-0">
           <span id="src-filename" class="text-muted small font-monospace flex-grow-1">No file selected</span>
+          {% if current and vscode_url %}
+          <a href="{{ vscode_url }}" target="_blank" rel="noopener"
+             class="btn btn-sm btn-outline-secondary flex-shrink-0" title="Open workspace in VSCode">
+            <i class="bi bi-code-square"></i>
+          </a>
+          {% endif %}
           <select id="sym-select" class="form-select form-select-sm" style="width:auto; display:none;"></select>
           <select id="src-fontsize" class="form-select form-select-sm" style="width:auto;" title="Font size">
             <option value="11">11px</option>

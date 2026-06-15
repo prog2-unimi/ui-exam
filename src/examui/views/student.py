@@ -23,6 +23,10 @@ def _live(email: str) -> UnderEvaluationEvent | None:
 def student(email):
   s = all_students().get(email)
   live = _live(email)
+  vscode_url = (
+    f'https://vscode.dev/tunnel/{config.VSCODE_TUNNEL}{config.STUDENT_BASE / email / "source"}'
+    if config.VSCODE_TUNNEL else None
+  )
   return render_template(
     'student.html',
     email=email,
@@ -31,6 +35,7 @@ def student(email):
     events=[e for e in (s.events if s else []) if isinstance(e, ExamEvent)],
     current=live,
     slot_minutes=config.SLOT_MINUTES,
+    vscode_url=vscode_url,
   )
 
 

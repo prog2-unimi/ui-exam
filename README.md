@@ -27,6 +27,9 @@ student_base = "/path/to/exams/students"
 slot_minutes     = 30
 trivial_packages = ["client", "clients", "util", "utils"]
 
+[vscode]
+tunnel = "santinivm"
+
 [teacher]
 email = "teacher@example.com"
 name  = "Name Surname"

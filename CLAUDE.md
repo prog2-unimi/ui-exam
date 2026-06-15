@@ -20,6 +20,9 @@ trivial_packages = ["client", "clients", "util", "utils"]
 course_name      = "Programmazione II"
 course_degree    = "Informatica"           # optional, for giustifica
 
+[vscode]
+tunnel = "santinivm"          # optional; enables the "Open in VSCode" button in the Source tab
+
 [actions]
 teacher_email  = "teacher@example.com"
 teacher_name   = "Name Surname"

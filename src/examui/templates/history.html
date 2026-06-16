@@ -23,32 +23,29 @@
   <option value="ritirato">Ritirato</option>
   <option value="respinto">Respinto</option>
 </select>
-<select id="page-len" class="form-select form-select-sm w-auto flex-shrink-0">
-  <option value="25">25</option>
-  <option value="50" selected>50</option>
-  <option value="100">100</option>
-  <option value="-1">All</option>
-</select>
+<span id="row-count" class="badge bg-secondary flex-shrink-0"></span>
 <input id="dt-search" type="search" class="form-control form-control-sm flex-grow-1"
        placeholder="Search…" style="min-width:0;">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-  <table id="students-table" class="table table-sm table-hover table-striped">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Matricola</th>
-        <th class="text-end">Results</th>
-        <th>First</th>
-        <th>Last</th>
-        <th>First eval</th>
-        <th>Mark</th>
-      </tr>
-    </thead>
-  </table>
+<div class="p-3 d-flex flex-column" style="flex: 1 1 0; min-height: 0;">
+  <div class="border rounded p-2" style="flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden;">
+    <table id="students-table" class="table table-sm table-hover table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Matricola</th>
+          <th class="text-end">Results</th>
+          <th>First</th>
+          <th>Last</th>
+          <th>First eval</th>
+          <th>Mark</th>
+        </tr>
+      </thead>
+    </table>
+  </div>
 </div>
 {% endblock %}
 

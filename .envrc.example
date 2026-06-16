@@ -1,5 +1,0 @@
-export EXAMUI_CONFIG="$(realpath "$(pwd)/config.toml")"
-
-# Optional overrides for development time simulation:
-# export TODAY=260615
-# export NOW=1145

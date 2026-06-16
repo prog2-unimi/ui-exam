@@ -4,13 +4,13 @@ const _activeEmail = (JSON.parse(sessionStorage.getItem('examTimer') || 'null') 
 
 const table = new DataTable('#students-table', {
   data: CFG.students,
-  pageLength: 50,
+  paging: false,
   order: [[0, 'asc']],
   layout: {
     topStart: null,
     topEnd: null,
-    bottomStart: 'info',
-    bottomEnd: 'paging',
+    bottomStart: null,
+    bottomEnd: null,
   },
   createdRow: (row, data) => { if (data.email === _activeEmail) row.classList.add('table-warning'); },
   columns: [
@@ -31,11 +31,10 @@ const FILTER_KEY = 'history-filters';
 
 function saveFilters() {
   sessionStorage.setItem(FILTER_KEY, JSON.stringify({
-    date:    document.getElementById('date-filter').value,
-    kind:    document.getElementById('kind-filter').value,
-    order:   table.order(),
-    search:  table.search(),
-    pageLen: table.page.len(),
+    date:   document.getElementById('date-filter').value,
+    kind:   document.getElementById('kind-filter').value,
+    order:  table.order(),
+    search: table.search(),
   }));
 }
 
@@ -44,11 +43,10 @@ function restoreFilters() {
   if (!saved) return;
   try {
     const f = JSON.parse(saved);
-    document.getElementById('date-filter').value  = f.date  ?? '';
-    document.getElementById('kind-filter').value  = f.kind  ?? '';
-    if (f.order)   table.order(f.order);
-    if (f.search)  { document.getElementById('dt-search').value = f.search; table.search(f.search); }
-    if (f.pageLen) { document.getElementById('page-len').value  = f.pageLen; table.page.len(f.pageLen); }
+    document.getElementById('date-filter').value = f.date  ?? '';
+    document.getElementById('kind-filter').value = f.kind  ?? '';
+    if (f.order)  table.order(f.order);
+    if (f.search) { document.getElementById('dt-search').value = f.search; table.search(f.search); }
   } catch (_) {}
 }
 
@@ -62,6 +60,10 @@ DataTable.ext.search.push((_settings, _data, _idx, row) => {
   return true;
 });
 
+table.on('draw.dt', () => {
+  document.getElementById('row-count').textContent = table.rows({ search: 'applied' }).count();
+});
+
 restoreFilters();
 table.draw();
 
@@ -72,11 +74,6 @@ table.on('order.dt', saveFilters);
 
 document.getElementById('dt-search').addEventListener('input', function() {
   table.search(this.value).draw();
-  saveFilters();
-});
-
-document.getElementById('page-len').addEventListener('change', function() {
-  table.page.len(parseInt(this.value)).draw();
   saveFilters();
 });
 

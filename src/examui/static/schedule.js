@@ -40,13 +40,13 @@ function syncCheckboxes() {
 
 const table = new DataTable('#schedule-table', {
   data: CFG.rows,
-  pageLength: 50,
+  paging: false,
   order: [[1, 'asc']],
   layout: {
     topStart: null,
     topEnd: null,
-    bottomStart: 'info',
-    bottomEnd: 'paging',
+    bottomStart: null,
+    bottomEnd: null,
   },
   createdRow: (row, data) => { if (data.email === _activeEmail) row.classList.add('table-warning'); },
   drawCallback: syncCheckboxes,
@@ -75,6 +75,10 @@ const table = new DataTable('#schedule-table', {
   ],
 });
 
+table.on('draw.dt', () => {
+  document.getElementById('row-count').textContent = table.rows({ search: 'applied' }).count();
+});
+
 DataTable.ext.search.push((_settings, _data, _idx, row) => {
   const date = document.getElementById('date-filter').value;
   if (date === '__unbooked__' && row.slot) return false;
@@ -90,10 +94,6 @@ document.getElementById('new-filter').addEventListener('change', () => table.dra
 
 document.getElementById('dt-search').addEventListener('input', function() {
   table.search(this.value).draw();
-});
-
-document.getElementById('page-len').addEventListener('change', function() {
-  table.page.len(parseInt(this.value)).draw();
 });
 
 document.getElementById('schedule-table').addEventListener('click', e => {

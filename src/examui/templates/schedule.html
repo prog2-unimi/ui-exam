@@ -67,36 +67,34 @@
     </div>
   </div>
 </div>
-<select id="page-len" class="form-select form-select-sm w-auto flex-shrink-0">
-  <option value="25">25</option>
-  <option value="50" selected>50</option>
-  <option value="-1">All</option>
-</select>
+<span id="row-count" class="badge bg-secondary flex-shrink-0"></span>
 <input id="dt-search" type="search" class="form-control form-control-sm flex-grow-1"
        placeholder="Search…" style="min-width:0;">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-  <table id="schedule-table" class="table table-sm table-hover table-striped">
-    <thead>
-      <tr>
-        <th><input type="checkbox" id="select-all"></th>
-        <th>Slot</th>
-        <th>Name</th>
-        <th>Matricola</th>
-        <th>Mark</th>
-        <th>Tests</th>
-        <th>Javadoc</th>
-        <th>Cyclic</th>
-        <th class="text-end">SLOC</th>
-        <th class="text-end">Docs</th>
-        <th class="text-end">Files</th>
-        <th class="text-end">Client SLOC</th>
-        <th class="text-end">Client files</th>
-      </tr>
-    </thead>
-  </table>
+<div class="p-3 d-flex flex-column" style="flex: 1 1 0; min-height: 0;">
+  <div class="border rounded p-2" style="flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden;">
+    <table id="schedule-table" class="table table-sm table-hover table-striped mb-0">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="select-all"></th>
+          <th>Slot</th>
+          <th>Name</th>
+          <th>Matricola</th>
+          <th>Mark</th>
+          <th>Tests</th>
+          <th>Javadoc</th>
+          <th>Cyclic</th>
+          <th class="text-end">SLOC</th>
+          <th class="text-end">Docs</th>
+          <th class="text-end">Files</th>
+          <th class="text-end">Client SLOC</th>
+          <th class="text-end">Client files</th>
+        </tr>
+      </thead>
+    </table>
+  </div>
 </div>
 {% endblock %}
 

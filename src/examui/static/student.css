@@ -1,8 +1,3 @@
-body        { height: 100dvh; overflow: hidden; }
-/* Bootstrap's min-vh-100 (!important) beats height:100dvh on mobile where 100vh > 100dvh */
-body.min-vh-100 { min-height: 0 !important; }
-body > main { display: flex; flex-direction: column; min-height: 0; padding-bottom: 0.5rem; }
-
 .source-file:hover  { background: var(--bs-primary-bg-subtle); cursor: pointer; }
 .source-file.active { background: var(--bs-primary-bg-subtle); font-weight: 500; }
 :root { --src-font-size: 13px; }

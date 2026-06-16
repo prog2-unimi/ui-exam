@@ -27,8 +27,8 @@ function updatePaceBadge() {
     .then(r => r.json())
     .then(d => {
       const el = document.getElementById('pace-badge');
-      if (!el || !d.has_slots) return;
-      if (d.done === d.total || (d.expected === 0 && d.done === 0)) {
+      if (!el) return;
+      if (!d.visible) {
         el.className = 'd-none badge fs-6';
         return;
       }

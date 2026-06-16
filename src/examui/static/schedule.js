@@ -33,6 +33,9 @@ function syncCheckboxes() {
     CFG.rows.some(r => selectedEmails.has(r.email) && r.slot);
   if (singleWithSlot) giustifica.classList.remove('disabled');
   else giustifica.classList.add('disabled');
+  const sifa = document.getElementById('sifa-action');
+  if (selectedEmails.size > 0) sifa.classList.remove('disabled');
+  else sifa.classList.add('disabled');
 }
 
 const table = new DataTable('#schedule-table', {
@@ -50,7 +53,7 @@ const table = new DataTable('#schedule-table', {
   columns: [
     { data: 'email', orderable: false, searchable: false,
       render: email => `<input type="checkbox" class="bcc-check" data-email="${email}">` },
-    { data: 'slot',    render: fmtSlot },
+    { data: 'slot', render: (d, type) => type === 'sort' ? (d || '9999') : fmtSlot(d) },
     { data: 'name',
       render: (d, _, row) => {
         const icon = row.is_current ? '<i class="bi bi-caret-right-fill text-primary me-1"></i>'
@@ -152,6 +155,27 @@ document.getElementById('bcc-action').addEventListener('click', e => {
   const to = CFG.teacherName ? `${CFG.teacherName} <${CFG.teacherEmail}>` : CFG.teacherEmail;
   const qs = `to=${encodeURIComponent(to)}&bcc=${encodeURIComponent(bcc)}&subject=${encodeURIComponent(CFG.subjectPrefix)}`;
   window.location.href = `mailto:?${qs}`;
+});
+
+document.getElementById('sifa-action').addEventListener('click', e => {
+  e.preventDefault();
+  const rows = CFG.rows.filter(r => selectedEmails.has(r.email) && r.current_mark);
+  if (!rows.length) return;
+  const fmtDate = slot => {
+    const d = new Date(slot || CFG.examDate);
+    const p = n => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+  const csv = rows.map(r => `${r.matricola},${r.current_mark},${fmtDate(r.slot)}`).join('\n');
+  const now = new Date();
+  const p = n => String(n).padStart(2, '0');
+  const fname = `sifa-${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.csv`;
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], {type: 'text/csv'})),
+    download: fname,
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
 });
 
 window.addEventListener('pageshow', e => { if (e.persisted) table.draw(); });

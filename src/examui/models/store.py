@@ -5,6 +5,7 @@ import dataclasses
 from datetime import date, datetime
 from functools import cache
 from pathlib import Path
+from zipfile import ZipFile
 
 import pandas as pd
 
@@ -98,6 +99,21 @@ def exam_date() -> str:
   if not files:
     raise RuntimeError(f'No iscrizioni XLS files found in {config.HISTORY_DIR}/iscrizioni')
   return files[-1].stem
+
+
+@cache
+def load_project_htmls() -> list[tuple[str, str]]:
+  zip_path = config.PROJECTS_DIR / f'{exam_date()}.zip'
+  if not zip_path.exists():
+    return []
+  with ZipFile(zip_path) as zf:
+    pairs = [
+      (Path(name).stem, zf.read(name).decode('utf-8', errors='replace')
+                           .replace('https://polyfill.io/', 'https://cdnjs.cloudflare.com/polyfill/'))
+      for name in zf.namelist()
+      if name.lower().endswith('.html') and name.count('/') == 1
+    ]
+  return sorted(pairs, key=lambda p: (p[0] != 'README', p[0]))
 
 
 def marks_mtime() -> datetime | None:

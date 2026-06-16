@@ -13,6 +13,7 @@ All stable configuration lives in a TOML file pointed to by the `EXAMUI_CONFIG` 
 history_dir  = "/path/to/exams/history"
 evals_dir    = "/path/to/exams/evals"
 student_base = "/path/to/exams/students"
+projects_dir = "/path/to/projects"
 
 [exam]
 slot_minutes     = 30
@@ -267,6 +268,10 @@ Returns `datetime.now()` unless the `NOW` env var (`HHMM`) is set, in which case
 
 Returns the stem of the most recent iscrizioni XLS (`YYMMDD`).
 
+#### `load_project_htmls()` — `@cache`
+
+Returns `list[tuple[stem, html_content]]` for all HTML files found at the first directory level inside `PROJECTS_DIR/<exam_date>.zip`. README comes first; the rest are sorted alphabetically. References to `polyfill.io` are rewritten to the Cloudflare equivalent (`cdnjs.cloudflare.com/polyfill/`) so browsers do not prompt for credentials. Warmed up at startup.
+
 #### `all_students()` — `@cache`
 
 Reads all iscrizioni XLS, all verbali XLS, past notes, and current marks.tsv once at startup. Builds the full `dict[email, Student]`. Students with source in marks.tsv get an `UnderEvaluationEvent` as their first event; enrolled-but-absent students get `ExamEvent(date, mark=None)` for the current date. No filesystem check for source presence.
@@ -344,9 +349,16 @@ Each entry in `students` includes: `email`, `name`, `matricola`, `attempts`, `fi
 
 All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark`, `current_mark` (from `live.mark.provisional`), and `matricola`. Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Also computes `slot_dates` (sorted list of distinct `YYYY-MM-DD` strings from booked slots). Passes `rows`, `today` (ISO date string), `slot_dates`, and the `[actions]` config values to `schedule.html`.
 
-`GET /api/pace` — returns schedule pace as JSON. Reads `provisional` live (not cached) for all slotted students. Response: `{has_slots, delta, done, expected, total}`. `delta = (done - expected) × SLOT_MINUTES` in minutes; positive = ahead, negative = behind. Uses `config.now()` so `NOW` env override applies.
+`GET /api/pace` — returns schedule pace as JSON. Reads `provisional` live (not cached) for all slotted students. Only considers slots booked for **today**. Response: `{visible, delta}`. `visible` is `false` when no slots exist for today, when `now` is more than 60 minutes before the first slot, or when all today's students already have a provisional mark. `delta` = `(next_pending_slot − now)` in minutes; positive = ahead, negative = behind. Uses `config.now()` so `NOW` env override applies.
 
 `GET /api/schedule/public` — renders `public_schedule.html`, a standalone page for students. Lists all `UnderEvaluationEvent` students sorted by matricola, showing their booked slot (formatted in Italian) and a pre-filled cal.com booking link (`config.CAL_URL?name=…&email=…&matricola=…`) for those without a slot. Bakes in the generation timestamp. Requires `[booking] cal_url` in config; booking links are omitted if absent.
+
+### `views/teacher.py` — `GET /teacher`, `GET /api/teacher/file/<filename>`
+
+Serves the exam instruction documents extracted from `PROJECTS_DIR/<exam_date>.zip`.
+
+- `GET /teacher` — renders `teacher.html` with `files = load_project_htmls()`.
+- `GET /api/teacher/file/<filename>` — returns the HTML content for the given stem (`filename` is the stem without `.html`). Content is served with `Content-Type: text/html; charset=utf-8`. Returns 404 if the stem is not in the loaded zip.
 
 ### `views/student.py` — per-student routes
 
@@ -364,9 +376,11 @@ All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics
 
 Templates live at `src/examui/templates/`. Static files live at `src/examui/static/`.
 
+**Separation of concerns**: CSS and JavaScript must live in static files (`.css` / `.js`), not embedded in templates. The only inline `<script>` block permitted in a template is a `CFG = {...}` object that bakes in server-rendered values (URLs, config) needed by the companion `.js` file. Inline `<style>` blocks are never used. Inline `style=` attributes on individual elements are acceptable for one-off layout values that don't belong in a stylesheet.
+
 ### `base.html`
 
-Bootstrap 5 + Bootstrap Icons CDN. Navigation bar (History / Schedule buttons + Active timer button) is in the shared `base.html` header block — `#active-btn` is rendered here, JS activates it per-page.
+Bootstrap 5 + Bootstrap Icons CDN. Navigation bar (History / Schedule / Teacher buttons + Active timer button) is in the shared `base.html` header block — `#active-btn` is rendered here, JS activates it per-page. The Teacher button is shown only when `has_teacher` is true (injected via a context processor when `config.PROJECTS_DIR` is set).
 
 Navbar also contains `#wall-clock` (current time, `HH:MM`, updated every second by `common.js`) and `#pace-badge` (ahead/behind indicator, polling `/api/pace` every 60 s). Both are visible on every page. `#pace-badge` is hidden when no slots are booked, when all students are done, or before the first slot's window has passed.
 
@@ -382,6 +396,7 @@ DataTables. `CFG = {rows, emailDomain, teacherEmail, teacherName, subjectPrefix,
 
 - **Compose BCC email** — always available when ≥ 1 checked. Opens `mailto:?to=<teacher>&bcc=<students>&subject=<prefix>` in the system mail app. Student addresses are assembled as `<username>@<email_domain>`.
 - **Giustifica** — enabled only when exactly 1 student with a booked slot is checked. Opens a modal to select `titolo` (from `CFG.titoli`) and review/edit `inizio`/`fine` times (pre-filled from the slot; a "Round to hour" button floors inizio and ceils fine). Confirming opens `/student/<email>/giustifica?...` in a new tab.
+- **SIFA** — enabled when ≥ 1 checked. Downloads a CSV file (`sifa-YYYYMMDD-HHMM.csv`) with one line per selected student that has a provisional mark (rows without a mark are silently skipped). Format: `matricola,mark,DD/MM/YYYY` where the date is taken from the student's booked slot, falling back to `CFG.examDate` (today's ISO date).
 
 `syncCheckboxes()` is the single function responsible for updating all checkbox states and enabling/disabling the dropdown and its items; it is called from both `drawCallback` and every individual checkbox/select-all interaction.
 
@@ -393,6 +408,10 @@ Standalone (does not extend `base.html`). Bootstrap 5 CDN. Italian language. Int
 - Yellow warning box (`alert-warning`) with three bullet points: booking instructions (with prefill note), slot-table currency notice (with generation timestamp), vademecum link.
 - Counts row (Ammessi / Prenotati / Da prenotare) — placed *below* the table (teacher-facing info).
 - Table: Matricola | Slot | action (green "Prenotato" badge or "Prenota →" button linking to prefilled cal.com URL).
+
+### `teacher.html`
+
+Extends `base.html`. Loads `teacher.css` and `teacher.js`. `{% block content %}` contains a full-height tabbed layout (one tab per HTML file from the zip, README first). Each tab pane holds an iframe pointing at `/api/teacher/file/<stem>`. Iframes are lazy-loaded: the first tab's iframe is loaded immediately by `teacher.js`; subsequent iframes load on first `shown.bs.tab` event.
 
 ### `giustifica.html`
 
@@ -437,7 +456,7 @@ Shared across all pages. Defines `renderMark(vm, cm)`:
 
 Also activates `#active-btn` (defined in `base.html`) for all pages using `sessionStorage['examTimer']`.
 
-Drives `#wall-clock` (ticks every second) and `#pace-badge` (polls `/api/pace` every 60 s). Badge shows `+Xm` (green) when ahead or `-Xm` (red) when behind; hidden when irrelevant.
+Drives `#wall-clock` (ticks every second) and `#pace-badge` (polls `/api/pace` every 60 s). Badge shows `+Xm` (green) when ahead or `-Xm` (red) when behind. Visibility is controlled entirely by the server (`visible` field): the badge is hidden before the 60-minute pre-window, when no slots exist for today, and after the last student is marked. When the exam timer is running (`sessionStorage['examTimer']`), the client adds back the elapsed time since `startMs` to freeze the displayed delta at the value it had when the current student's exam started.
 
 ### `static/history.js`
 
@@ -449,7 +468,7 @@ DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. 
 
 `createdRow` adds `table-warning` for the active-timer student. The name cell render prepends `bi-caret-right-fill text-primary` for `is_current` and `bi-caret-right text-secondary` for `is_next`; active-timer highlight takes priority over the caret icons.
 
-**Selection and Actions**: `selectedEmails` (`Set`) tracks checked rows across redraws. `syncCheckboxes()` is the single point of truth — called from `drawCallback` and all checkbox interactions (individual row and select-all header). It syncs checkbox DOM state, enables/disables the Actions dropdown button (`#actions-btn`, enabled when ≥ 1 selected), and enables/disables the Giustifica item (`#giustifica-action`, enabled only when exactly 1 student with a `slot` is selected).
+**Selection and Actions**: `selectedEmails` (`Set`) tracks checked rows across redraws. `syncCheckboxes()` is the single point of truth — called from `drawCallback` and all checkbox interactions (individual row and select-all header). It syncs checkbox DOM state, enables/disables the Actions dropdown button (`#actions-btn`, enabled when ≥ 1 selected), enables/disables `#giustifica-action` (only when exactly 1 student with a `slot` is selected), and enables/disables `#sifa-action` (when ≥ 1 selected).
 
 ### `static/student.js`
 
@@ -465,7 +484,7 @@ DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. 
 ## Caching philosophy
 
 - `@cache` used consistently throughout — never `@lru_cache` with explicit size.
-- `all_students()`, `exam_date()`: cached for process lifetime.
+- `all_students()`, `exam_date()`, `load_project_htmls()`: cached for process lifetime.
 - `tree`, `all_symbols`, `file`, `deps` in `models/source.py`: cached per email (or email+relpath).
 - Live I/O (`provisional`, `annotation`, `note` on `UnderEvaluationMark`) intentionally **not** cached.
 - Single-worker gunicorn is a hard requirement.

@@ -26,6 +26,8 @@
     <li><a class="dropdown-item" href="#" id="bcc-action"><i class="bi bi-envelope me-1"></i>Compose BCC email</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item disabled" href="#" id="giustifica-action"><i class="bi bi-file-earmark-text me-1"></i>Giustifica</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item disabled" href="#" id="sifa-action"><i class="bi bi-download me-1"></i>SIFA</a></li>
   </ul>
 </div>
 
@@ -110,6 +112,7 @@ const CFG = {
   teacherName:    {{ teacher_name | tojson }},
   slotMinutes:    {{ slot_minutes | tojson }},
   subjectPrefix:  {{ subject_prefix | tojson }},
+  examDate:       {{ today | tojson }},
 };
 </script>
 <script src="{{ url_for('static', filename='schedule.js') }}"></script>

@@ -20,6 +20,7 @@ with open(environ['EXAMUI_CONFIG'], 'rb') as _f:
 HISTORY_DIR      = Path(_cfg['paths']['history_dir'])
 EVALS_DIR        = Path(_cfg['paths']['evals_dir'])
 STUDENT_BASE     = Path(_cfg['paths']['student_base'])
+PROJECTS_DIR     = Path(_cfg['paths']['projects_dir'])
 SLOT_MINUTES     = _cfg['exam']['slot_minutes']
 TRIVIAL_PACKAGES = frozenset(_cfg['exam'].get('trivial_packages', ['client', 'clients', 'util', 'utils']))
 COURSE_NAME      = _cfg['exam']['course_name']

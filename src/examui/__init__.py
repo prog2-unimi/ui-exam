@@ -24,10 +24,18 @@ def create_app():
   from examui.views.student import bp as student_bp
   from examui.views.history import bp as history_bp
   from examui.views.schedule import bp as schedule_bp
+  from examui.views.teacher import bp as teacher_bp
+  from examui.models.store import load_project_htmls
+  from examui import config as _config
 
   app.register_blueprint(student_bp)
   app.register_blueprint(history_bp)
   app.register_blueprint(schedule_bp)
+  app.register_blueprint(teacher_bp)
+
+  @app.context_processor
+  def _inject_globals():
+    return {'has_teacher': bool(_config.PROJECTS_DIR)}
 
   @app.get('/')
   def index():
@@ -45,6 +53,7 @@ def create_app():
   _log.info('[warmup] %d students with source', len(with_source))
   for email in with_source:
     source.warmup(email)
+  load_project_htmls()
   _log.info('[warmup] complete')
 
   return app

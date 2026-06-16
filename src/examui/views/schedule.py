@@ -107,6 +107,7 @@ def public_schedule():
 @bp.get('/api/pace')
 def pace():
   now = config.now()
+  today = now.date()
   slot_delta = timedelta(minutes=config.SLOT_MINUTES)
   with_slots = [
     s.events[0]
@@ -114,21 +115,17 @@ def pace():
     if s.events
     and isinstance(s.events[0], UnderEvaluationEvent)
     and s.events[0].metrics.slot is not None
+    and s.events[0].metrics.slot.date() == today
   ]
   if not with_slots:
-    return jsonify(has_slots=False)
-  expected_done = sum(1 for ev in with_slots if ev.metrics.slot + slot_delta <= now)
+    return jsonify(visible=False)
+  first_slot = min(ev.metrics.slot for ev in with_slots)
+  if now < first_slot - timedelta(minutes=60):
+    return jsonify(visible=False)
   actual_done = sum(1 for ev in with_slots if ev.mark.provisional)
+  if actual_done == len(with_slots):
+    return jsonify(visible=False)
   sorted_events = sorted(with_slots, key=lambda ev: ev.metrics.slot)
   unmarked = [ev for ev in sorted_events if not ev.mark.provisional]
-  if unmarked:
-    delta = round((unmarked[0].metrics.slot - now).total_seconds() / 60)
-  else:
-    delta = round((sorted_events[-1].metrics.slot + slot_delta - now).total_seconds() / 60)
-  return jsonify(
-    has_slots=True,
-    delta=delta,
-    done=actual_done,
-    expected=expected_done,
-    total=len(with_slots),
-  )
+  delta = round((unmarked[0].metrics.slot - now).total_seconds() / 60)
+  return jsonify(visible=True, delta=delta)

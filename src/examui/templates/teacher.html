@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher — p2e{% endblock %}
+
+{% block head %}
+<link href="{{ url_for('static', filename='teacher.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column px-3 pt-2" style="flex: 1 1 0; min-height: 0;">
+
+  <ul class="nav nav-tabs flex-shrink-0" role="tablist">
+    {% for name, _ in files %}
+    <li class="nav-item">
+      <button class="nav-link {% if loop.first %}active{% endif %}"
+              data-bs-toggle="tab" data-bs-target="#teacher-tab-{{ loop.index }}" type="button">
+        {{ name }}
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="tab-content border border-top-0 rounded-bottom" style="flex: 1 1 0; min-height: 0; overflow: hidden;">
+    {% for name, _ in files %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+         id="teacher-tab-{{ loop.index }}">
+      <iframe class="d-block w-100 h-100 border-0"
+              src="" data-src="{{ url_for('teacher.teacher_file', filename=name) }}"></iframe>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='teacher.js') }}"></script>
+{% endblock %}

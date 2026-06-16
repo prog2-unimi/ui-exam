@@ -9,7 +9,8 @@ Given a student's submitted source code and generated Javadoc, it provides:
 - a per-session oral page with a note editor, syntax-highlighted source navigator
   (with symbol search and Javadoc deep-links), dependency graph, Javadoc viewer,
   and a Details tab for computed auxiliary files;
-- a schedule view with slot assignments, pace tracking, and actions (BCC email, giustifica);
+- a schedule view with slot assignments, pace tracking, and actions (BCC email, giustifica, SIFA CSV export);
+- a teacher view displaying exam instruction documents (HTML files from a per-session zip archive) in a tabbed iframe layout;
 - a public-facing booking page (deployed to Netlify) listing admitted students with
   pre-filled cal.com booking links.
 
@@ -25,6 +26,7 @@ Copy `config.toml.example` to `config.toml` and fill in your values:
 history_dir  = "/path/to/exams/history"
 evals_dir    = "/path/to/exams/evals"
 student_base = "/path/to/exams/students"
+projects_dir = "/path/to/projects"        # enables the Teacher view
 
 [exam]
 slot_minutes     = 30

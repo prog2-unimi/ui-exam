@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 
 from flask import Blueprint, jsonify, render_template
 from examui import config
-from examui.models.store import all_students, UnderEvaluationEvent
+from examui.models.store import all_students, exam_date, marks_mtime, UnderEvaluationEvent
 
 bp = Blueprint('schedule', __name__, url_prefix='')
 
@@ -70,9 +70,11 @@ def _fmt_slot(slot: datetime) -> str:
 
 @bp.get('/api/schedule/public')
 def public_schedule():
-  now      = datetime.now()
-  exam_dt  = datetime.strptime(config.TODAY, '%y%m%d')
+  exam_dt  = datetime.strptime(exam_date(), '%y%m%d')
   exam_fmt = f'{exam_dt.day} {_MESI[exam_dt.month - 1]} {exam_dt.year}'
+  mtime    = marks_mtime()
+  mtime_fmt = (f"{mtime.strftime('%d/%m/%Y')} alle ore {mtime.strftime('%H:%M')}"
+               if mtime else 'N/D')
 
   rows = []
   for s in sorted(
@@ -98,7 +100,7 @@ def public_schedule():
     cal_url=config.CAL_URL,
     total=len(rows),
     booked=booked,
-    generated_at=f"{now.strftime('%d/%m/%Y')} alle ore {now.strftime('%H:%M')}",
+    generated_at=mtime_fmt,
   )
 
 
@@ -117,9 +119,15 @@ def pace():
     return jsonify(has_slots=False)
   expected_done = sum(1 for ev in with_slots if ev.metrics.slot + slot_delta <= now)
   actual_done = sum(1 for ev in with_slots if ev.mark.provisional)
+  sorted_events = sorted(with_slots, key=lambda ev: ev.metrics.slot)
+  unmarked = [ev for ev in sorted_events if not ev.mark.provisional]
+  if unmarked:
+    delta = round((unmarked[0].metrics.slot - now).total_seconds() / 60)
+  else:
+    delta = round((sorted_events[-1].metrics.slot + slot_delta - now).total_seconds() / 60)
   return jsonify(
     has_slots=True,
-    delta=(actual_done - expected_done) * config.SLOT_MINUTES,
+    delta=delta,
     done=actual_done,
     expected=expected_done,
     total=len(with_slots),

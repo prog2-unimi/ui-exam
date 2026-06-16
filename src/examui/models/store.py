@@ -100,6 +100,14 @@ def exam_date() -> str:
   return files[-1].stem
 
 
+def marks_mtime() -> datetime | None:
+  """Modification time of marks.tsv for the current exam; None if the file does not exist."""
+  path = config.EVALS_DIR / exam_date() / 'marks.tsv'
+  if not path.exists():
+    return None
+  return datetime.fromtimestamp(path.stat().st_mtime)
+
+
 @cache
 def all_students() -> dict[str, Student]:
   mat2email: dict[str, str] = {}

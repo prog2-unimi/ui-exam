@@ -32,8 +32,12 @@ function updatePaceBadge() {
         el.className = 'd-none badge fs-6';
         return;
       }
-      const abs = Math.abs(d.delta);
-      const [prefix, cls] = d.delta >= 0
+      let delta = d.delta;
+      const timer = JSON.parse(sessionStorage.getItem('examTimer') || 'null');
+      if (timer) delta += (Date.now() - timer.startMs) / 60000;
+      const rounded = Math.round(delta);
+      const abs = Math.abs(rounded);
+      const [prefix, cls] = rounded >= 0
         ? ['+', 'badge fs-6 bg-success']
         : ['-', 'badge fs-6 bg-danger'];
       el.className = cls;

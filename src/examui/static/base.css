@@ -1,0 +1,5 @@
+.bg-orange { background-color: #fd7e14 !important; color: #000 !important; }
+
+.tab-content          { position: relative; }
+.tab-pane             { position: absolute; inset: 0; }
+.tab-pane:not(.show)  { pointer-events: none; }

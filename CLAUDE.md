@@ -378,6 +378,8 @@ Templates live at `src/examui/templates/`. Static files live at `src/examui/stat
 
 **Separation of concerns**: CSS and JavaScript must live in static files (`.css` / `.js`), not embedded in templates. The only inline `<script>` block permitted in a template is a `CFG = {...}` object that bakes in server-rendered values (URLs, config) needed by the companion `.js` file. Inline `<style>` blocks are never used. Inline `style=` attributes on individual elements are acceptable for one-off layout values that don't belong in a stylesheet.
 
+**Static file naming convention**: `base.css` and `common.js` are loaded by `base.html` and apply to every page. Page-specific overrides go in `<page>.css` / `<page>.js`. Rules that are shared across multiple pages but not universal belong in `base.css`; rules specific to a single page stay in that page's own CSS file.
+
 ### `base.html`
 
 Bootstrap 5 + Bootstrap Icons CDN. Navigation bar (History / Schedule / Teacher buttons + Active timer button) is in the shared `base.html` header block — `#active-btn` is rendered here, JS activates it per-page. The Teacher button is shown only when `has_teacher` is true (injected via a context processor when `config.PROJECTS_DIR` is set).
@@ -445,9 +447,13 @@ Status indicator is `#tab-note-status` (in the tab label itself), not a separate
 
 ## JavaScript
 
+### `static/base.css`
+
+Loaded by `base.html` on every page. Contains `.bg-orange` (Bootstrap colour extension) and the shared tab layout rules (`.tab-content`, `.tab-pane`, `.tab-pane:not(.show)`) used by any page with a tabbed view.
+
 ### `static/common.js`
 
-Shared across all pages. Defines `renderMark(vm, cm)`:
+Loaded by `base.html` on every page. Defines `renderMark(vm, cm)`:
 
 - If `cm` is provided and non-empty (schedule context) → yellow provisional badge.
 - If `vm` is set → verbali_mark badge using `MARK_CSS`/`MARK_LABEL` maps (kind → CSS class / short label).

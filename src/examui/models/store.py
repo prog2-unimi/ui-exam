@@ -108,8 +108,7 @@ def load_project_htmls() -> list[tuple[str, str]]:
     return []
   with ZipFile(zip_path) as zf:
     pairs = [
-      (Path(name).stem, zf.read(name).decode('utf-8', errors='replace')
-                           .replace('https://polyfill.io/', 'https://cdnjs.cloudflare.com/polyfill/'))
+      (Path(name).stem, zf.read(name).decode('utf-8', errors='replace'))
       for name in zf.namelist()
       if name.lower().endswith('.html') and name.count('/') == 1
     ]

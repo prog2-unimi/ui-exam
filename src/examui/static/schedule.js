@@ -87,13 +87,40 @@ DataTable.ext.search.push((_settings, _data, _idx, row) => {
   return true;
 });
 
+const FILTER_KEY = 'schedule-filters';
+
+function saveFilters() {
+  sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+    date:    document.getElementById('date-filter').value,
+    newOnly: document.getElementById('new-filter').checked,
+    order:   table.order(),
+    search:  table.search(),
+  }));
+}
+
+function restoreFilters() {
+  const saved = sessionStorage.getItem(FILTER_KEY);
+  if (!saved) return;
+  try {
+    const f = JSON.parse(saved);
+    document.getElementById('date-filter').value = f.date ?? '';
+    document.getElementById('new-filter').checked = f.newOnly ?? false;
+    if (f.order)  table.order(f.order);
+    if (f.search) { document.getElementById('dt-search').value = f.search; table.search(f.search); }
+  } catch (_) {}
+}
+
+restoreFilters();
 table.draw();
 
-document.getElementById('date-filter').addEventListener('change', () => table.draw());
-document.getElementById('new-filter').addEventListener('change', () => table.draw());
+function onChange() { saveFilters(); table.draw(); }
+document.getElementById('date-filter').addEventListener('change', onChange);
+document.getElementById('new-filter').addEventListener('change', onChange);
+table.on('order.dt', saveFilters);
 
 document.getElementById('dt-search').addEventListener('input', function() {
   table.search(this.value).draw();
+  saveFilters();
 });
 
 document.getElementById('schedule-table').addEventListener('click', e => {

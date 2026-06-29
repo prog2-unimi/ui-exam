@@ -261,3 +261,49 @@ public class Foo {
 '''
   _, _, uses, _, _ = class_uses(src)
   assert any('ArrayList' in fqn for fqn in uses['instantiates'])
+
+
+def test_class_uses_static_method_call():
+  src = '''\
+package com.example;
+
+import com.example.util.Helper;
+
+public class Foo {
+  public void bar() {
+    Helper.doSomething();
+  }
+}
+'''
+  _, _, uses, _, _ = class_uses(src)
+  assert 'com.example.util.Helper' in uses['local']
+
+
+def test_class_uses_static_field_access():
+  src = '''\
+package com.example;
+
+import com.example.util.Constants;
+
+public class Foo {
+  public void bar() {
+    int x = Constants.MAX_VALUE;
+  }
+}
+'''
+  _, _, uses, _, _ = class_uses(src)
+  assert 'com.example.util.Constants' in uses['local']
+
+
+def test_class_uses_static_call_same_package():
+  src = '''\
+package com.example;
+
+public class Foo {
+  public void bar() {
+    Helper.doSomething();
+  }
+}
+'''
+  _, _, uses, _, _ = class_uses(src)
+  assert 'com.example.Helper' in uses['local']

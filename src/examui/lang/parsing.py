@@ -228,6 +228,12 @@ def _walk_uses(node, src: bytes, package: str, imports: dict, uses: dict) -> Non
     if typ:
       for r in _collect_type_refs(typ, src):
         uses['instantiates'].add(_resolve(r, package, imports))
+  elif t in ('method_invocation', 'field_access'):
+    obj = node.child_by_field_name('object')
+    if obj and obj.type == 'identifier':
+      name = src[obj.start_byte : obj.end_byte].decode()
+      if name[:1].isupper():
+        uses['local'].add(_resolve(name, package, imports))
   for child in node.children:
     _walk_uses(child, src, package, imports, uses)
 

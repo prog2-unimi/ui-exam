@@ -5,7 +5,7 @@
 set -e
 
 BINDIR="$(dirname "$(realpath "$0")")"
-source "$BINDIR/../.envrc"
+source "$BINDIR/../.env"
 
 : "${EXAMUI_PORT:=8765}"
 BASE="http://localhost:${EXAMUI_PORT}"

@@ -7,8 +7,8 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PAT
 
 APPDIR="$(dirname "$(realpath "$0")")/.."
 
-if [ ! -f "$APPDIR/.envrc" ]; then echo "ERROR: .envrc not found"; exit 1; fi
-source "$APPDIR/.envrc"
+if [ ! -f "$APPDIR/.env" ]; then echo "ERROR: .env not found"; exit 1; fi
+source "$APPDIR/.env"
 
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT

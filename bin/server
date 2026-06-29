@@ -19,8 +19,8 @@ LOGFILE="/tmp/examui.log"
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOGFILE"; }
 log "--- session start (SSH_CLIENT=${SSH_CLIENT:-unknown}) ---"
 
-if [ ! -f "$APPDIR/.envrc" ]; then log "ERROR: .envrc not found"; exit 1; fi
-source "$APPDIR/.envrc"
+if [ ! -f "$APPDIR/.env" ]; then log "ERROR: .env not found"; exit 1; fi
+source "$APPDIR/.env"
 
 if [ -f "$PIDFILE" ]; then
     OLD_PID=$(cat "$PIDFILE")

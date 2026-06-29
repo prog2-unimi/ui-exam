@@ -1,22 +1,22 @@
-  #!/bin/bash
+#!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 #
 # Termux client script: opens SSH tunnel, launches browser, cleans up on exit.
 # Requires: openssh, termux-api (pkg install openssh termux-api)
 #
-# Configuration via .envrc in the same directory as this script:
+# Configuration via .env in the project root:
 #   EXAMUI_HOST=svm
 #   EXAMUI_KEY=~/.ssh/id_examui
 #   EXAMUI_PORT=8765
 
 BINDIR="$(dirname "$(realpath "$0")")"
-if [ ! -f "$BINDIR/.envrc" ]; then echo "ERROR: $BINDIR/.envrc not found" >&2; exit 1; fi
-source "$BINDIR/../.envrc"
+if [ ! -f "$BINDIR/../.env" ]; then echo "ERROR: .env not found" >&2; exit 1; fi
+source "$BINDIR/../.env"
 
-: "${EXAMUI_HOST:?EXAMUI_HOST not set in .envrc}"
-: "${EXAMUI_KEY:?EXAMUI_KEY not set in .envrc}"
-: "${EXAMUI_PORT:?EXAMUI_PORT not set in .envrc}"
+: "${EXAMUI_HOST:?EXAMUI_HOST not set in .env}"
+: "${EXAMUI_KEY:?EXAMUI_KEY not set in .env}"
+: "${EXAMUI_PORT:?EXAMUI_PORT not set in .env}"
 
 unset SSH_AUTH_SOCK SSH_AGENT_PID
 ssh -i "$EXAMUI_KEY" -o IdentitiesOnly=yes \

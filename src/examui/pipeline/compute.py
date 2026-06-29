@@ -13,6 +13,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
+from rich.progress import (
+  BarColumn,
+  MofNCompleteColumn,
+  Progress,
+  SpinnerColumn,
+  TextColumn,
+  TimeElapsedColumn,
+)
+
 _log = logging.getLogger(__name__)
 
 _RESULTS_RE = re.compile(
@@ -132,16 +141,17 @@ def _run_javadoc(source_dir: Path, computed_dir: Path, javadoc_dir: Path) -> tup
   return status, cyclic
 
 
-def _run_pygount(source_dir: Path) -> dict:
+def _run_pygount(source_dir: Path, trivial_packages: frozenset[str]) -> dict:
   java_dir = source_dir / 'src' / 'main' / 'java'
   metrics = {
     'sloc_code': 0, 'sloc_docs': 0, 'sloc_files': 0,
     'slocc_code': 0, 'slocc_files': 0,
   }
 
+  skip = ','.join(sorted(trivial_packages))
   try:
     result = subprocess.run(
-      ['pygount', '-F', 'clients', '-f', 'json', str(java_dir)],
+      ['pygount', '-F', skip, '-f', 'json', str(java_dir)],
       capture_output=True, text=True, timeout=60,
     )
     if result.returncode == 0:
@@ -152,19 +162,21 @@ def _run_pygount(source_dir: Path) -> dict:
   except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as e:
     _log.warning('pygount (main) failed: %s', e)
 
-  clients_dir = java_dir / 'clients'
-  if clients_dir.exists():
+  for pkg in sorted(trivial_packages):
+    pkg_dir = java_dir / pkg
+    if not pkg_dir.exists():
+      continue
     try:
       result = subprocess.run(
-        ['pygount', '-f', 'json', str(clients_dir)],
+        ['pygount', '-f', 'json', str(pkg_dir)],
         capture_output=True, text=True, timeout=60,
       )
       if result.returncode == 0:
         summary = json.loads(result.stdout).get('summary', {})
-        metrics['slocc_code'] = summary.get('totalCodeCount', 0)
-        metrics['slocc_files'] = summary.get('totalFileCount', 0)
+        metrics['slocc_code'] += summary.get('totalCodeCount', 0)
+        metrics['slocc_files'] += summary.get('totalFileCount', 0)
     except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as e:
-      _log.warning('pygount (clients) failed: %s', e)
+      _log.warning('pygount (%s) failed: %s', pkg, e)
 
   return metrics
 
@@ -176,6 +188,8 @@ def _compute_one(
   template_zip: Path,
   existing_hashes: dict[str, str],
   force: bool,
+  trivial_packages: frozenset[str],
+  progress: Progress | None = None,
 ) -> tuple[str, dict | None]:
   """Compute metrics for one student. Returns (email, metrics_dict_or_None)."""
   consegna = None
@@ -196,29 +210,45 @@ def _compute_one(
   if not force and existing_hashes.get(email) == current_hash:
     return email, None
 
+  task = progress.add_task(email, total=4, status='extracting') if progress else None
   try:
-    source_dir = _extract_source(email, consegna, template_zip, student_base)
-  except (BadZipFile, OSError) as e:
-    _log.error('Source extraction failed for %s: %s', email, e)
-    return email, None
+    try:
+      source_dir = _extract_source(email, consegna, template_zip, student_base)
+    except (BadZipFile, OSError) as e:
+      _log.error('Source extraction failed for %s: %s', email, e)
+      return email, None
 
-  computed_dir = student_base / email / 'computed'
-  computed_dir.mkdir(parents=True, exist_ok=True)
-  javadoc_dir = student_base / email / 'javadoc'
+    computed_dir = student_base / email / 'computed'
+    computed_dir.mkdir(parents=True, exist_ok=True)
+    javadoc_dir = student_base / email / 'javadoc'
 
-  tests_status = _run_tests(source_dir, computed_dir)
-  javadoc_status, javadoc_cyclic = _run_javadoc(source_dir, computed_dir, javadoc_dir)
-  sloc = _run_pygount(source_dir)
+    if progress:
+      progress.update(task, status='testing', advance=1)
+    tests_status = _run_tests(source_dir, computed_dir)
 
-  (computed_dir / 'source.hash').write_text(current_hash)
+    if progress:
+      progress.update(task, status='javadoc', advance=1)
+    javadoc_status, javadoc_cyclic = _run_javadoc(source_dir, computed_dir, javadoc_dir)
 
-  return email, {
-    'source_hash': current_hash,
-    'tests_status': tests_status,
-    'javadoc_status': javadoc_status,
-    'javadoc_cyclic': javadoc_cyclic,
-    **sloc,
-  }
+    if progress:
+      progress.update(task, status='pygount', advance=1)
+    sloc = _run_pygount(source_dir, trivial_packages)
+
+    if progress:
+      progress.advance(task)
+
+    (computed_dir / 'source.hash').write_text(current_hash)
+
+    return email, {
+      'source_hash': current_hash,
+      'tests_status': tests_status,
+      'javadoc_status': javadoc_status,
+      'javadoc_cyclic': javadoc_cyclic,
+      **sloc,
+    }
+  finally:
+    if task is not None:
+      progress.remove_task(task)
 
 
 def compute_all(
@@ -227,8 +257,9 @@ def compute_all(
   student_base: Path,
   projects_dir: Path,
   exam_date: str,
+  trivial_packages: frozenset[str],
   force: bool = False,
-  workers: int = 4,
+  workers: int | None = None,
   student_filter: str | None = None,
 ) -> tuple[int, int, int]:
   """Returns (computed_count, skipped_count, error_count)."""
@@ -258,39 +289,50 @@ def compute_all(
   error_count = 0
   total = len(students)
 
-  results: list[tuple[str, dict | None]] = []
+  from examui.pipeline.db import upsert_computed
 
-  with ThreadPoolExecutor(max_workers=workers) as pool:
-    futures = {
-      pool.submit(
-        _compute_one, email, student_base, work_dir, template_zip, existing_hashes, force
-      ): email
-      for email in sorted(students)
-    }
-    for i, future in enumerate(as_completed(futures), 1):
-      email = futures[future]
-      try:
-        _, metrics = future.result()
-      except Exception:
-        _log.exception('Unexpected error computing %s', email)
-        error_count += 1
-        print(f'  [{i}/{total}] {email}... ERROR', flush=True)
-        continue
+  progress = Progress(
+    SpinnerColumn(),
+    TextColumn('[progress.description]{task.description}'),
+    BarColumn(),
+    MofNCompleteColumn(),
+    TextColumn('[dim]{task.fields[status]}[/dim]'),
+    TimeElapsedColumn(),
+  )
 
-      if metrics is None:
-        skipped_count += 1
-        print(f'  [{i}/{total}] {email}... skipped', flush=True)
-      else:
-        results.append((email, metrics))
-        computed_count += 1
-        print(
-          f'  [{i}/{total}] {email}... '
-          f'tests: {metrics["tests_status"]}, javadoc: {metrics["javadoc_status"]}',
-          flush=True,
-        )
+  with progress:
+    task = progress.add_task('Computing', total=total, status='')
 
-  for email, metrics in results:
-    from examui.pipeline.db import upsert_computed
-    upsert_computed(conn, email, **metrics)
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+      futures = {
+        pool.submit(
+          _compute_one, email, student_base, work_dir, template_zip,
+          existing_hashes, force, trivial_packages, progress,
+        ): email
+        for email in sorted(students)
+      }
+      for future in as_completed(futures):
+        email = futures[future]
+        try:
+          _, metrics = future.result()
+        except Exception:
+          _log.exception('Unexpected error computing %s', email)
+          error_count += 1
+          progress.console.print(f'  [red]✗[/red] {email} — ERROR')
+          progress.advance(task)
+          continue
+
+        if metrics is None:
+          skipped_count += 1
+          progress.console.print(f'  [dim]- {email} — skipped[/dim]')
+        else:
+          upsert_computed(conn, email, **metrics)
+          conn.commit()
+          computed_count += 1
+          ts = '[green]OK[/green]' if metrics['tests_status'] == 'SUCCESS' else '[red]FAIL[/red]'
+          js = '[green]OK[/green]' if metrics['javadoc_status'] == 'SUCCESS' else '[red]FAIL[/red]'
+          progress.console.print(f'  {email} — tests: {ts}  javadoc: {js}')
+
+        progress.advance(task)
 
   return computed_count, skipped_count, error_count

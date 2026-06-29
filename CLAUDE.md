@@ -12,8 +12,8 @@ All stable configuration lives in a TOML file pointed to by the `EXAMUI_CONFIG` 
 [paths]
 history_dir  = "/path/to/exams/history"
 evals_dir    = "/path/to/exams/evals"
-student_base = "/path/to/exams/students"
 projects_dir = "/path/to/projects"
+work_dir     = "/path/to/work/dir"               # ephemeral directory for pipeline artifacts
 
 [exam]
 slot_minutes     = 30
@@ -25,7 +25,10 @@ course_degree    = "Informatica"           # optional, for giustifica
 tunnel = "santinivm"          # optional; enables the "Open in VSCode" button in the Source tab
 
 [booking]
-cal_url = "https://cal.com/username/event-name"   # optional; enables the public schedule page
+cal_url  = "https://cal.com/username/event-name"   # optional; enables the public schedule page
+endpoint = "https://api.cal.com/v2/bookings"       # cal.com API endpoint (for pipeline)
+version  = "2024-08-13"                            # cal.com API version (for pipeline)
+event    = 1234567                                 # cal.com event type ID (for pipeline)
 
 [actions]
 teacher_email  = "teacher@example.com"
@@ -34,18 +37,10 @@ subject_prefix = "[CourseCode] "
 email_domain   = "students.university.edu"
 titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]
 
-[pipeline]                                   # optional; only needed for exam-pipeline CLI
-work_dir = "/path/to/work/dir"               # ephemeral directory for pipeline artifacts
-
-[pipeline.uploads]
+[uploads]                                    # only needed for exam-pipeline CLI
 url      = "https://api.upload.di.unimi.it/admin"
 username = "teacher@university.edu"
 session  = 1234                              # upload session ID (changes per semester)
-
-[pipeline.calendar]
-endpoint = "https://api.cal.com/v2/bookings"
-version  = "2024-08-13"
-event    = 1234567                           # cal.com event type ID
 ```
 
 `tomllib` (stdlib ≥ 3.11) is used to parse it — no extra dependency.
@@ -584,8 +579,8 @@ collect ────────→ EVALS_DIR/<date>/marks.tsv (preserving mark/
 - `pipeline/__init__.py` — Click CLI group + all command definitions. Reads config, manages DB connection lifecycle.
 - `pipeline/db.py` — SQLite schema (4 tables, all `CREATE TABLE IF NOT EXISTS`), context-managed `connect()`, typed upsert/read helpers.
 - `pipeline/fetch.py` — `fetch_uploads()` (uploads API → zip → extract), `fetch_calendar()` (cal.com API → fuzzy-match → DB).
-- `pipeline/compute.py` — `compute_all()` dispatches `_compute_one()` via ThreadPoolExecutor. Each student: hash check → extract source (template zip + student zip + spotlessApply) → `gradlew test` → `gradlew javadoc` → `pygount` → upsert DB. DB writes are batched in the main thread after all futures complete (avoids multi-threaded SQLite access).
-- `pipeline/collect.py` — `load_history()` reads XLS via shared `data.history` and populates the history table. `collect_marks()` joins all DB tables, merges with existing marks.tsv (preserving `mark`/`note` columns written by the UI), writes the result. `noshow_emails()` returns enrolled students with no submission.
+- `pipeline/compute.py` — `compute_all()` dispatches `_compute_one()` via ThreadPoolExecutor. Each student: hash check → extract source (template zip + student zip + spotlessApply) → `gradlew test` → `gradlew javadoc` → `pygount` → upsert DB. Each student's result is committed to SQLite immediately so interrupted runs preserve finished work. Progress is shown via `rich.progress.Progress` with per-student sub-tasks showing the current step.
+- `pipeline/collect.py` — `load_history()` reads XLS via shared `data.history` and populates the history table. `collect_marks()` joins all DB tables, merges with existing marks.tsv (preserving `mark`/`note` columns written by the UI), writes the result. `write_noshow()` writes `noshow.csv` (enrolled students with no submission). `noshow_emails()` returns the same list as emails.
 
 ### Shared data module (`src/examui/data/`)
 

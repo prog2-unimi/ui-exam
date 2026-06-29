@@ -25,8 +25,8 @@ Copy `config.toml.example` to `config.toml` and fill in your values:
 [paths]
 history_dir  = "/path/to/exams/history"
 evals_dir    = "/path/to/exams/evals"
-student_base = "/path/to/exams/students"
 projects_dir = "/path/to/projects"        # enables the Teacher view
+work_dir     = "/path/to/work/dir"        # ephemeral directory for pipeline artifacts
 
 [exam]
 slot_minutes     = 30
@@ -38,7 +38,10 @@ course_degree    = "Informatica"       # optional, for giustifica
 tunnel = "santinivm"                   # optional; enables "Open in VSCode" button
 
 [booking]
-cal_url = "https://cal.com/user/event" # optional; enables public schedule page
+cal_url  = "https://cal.com/user/event" # optional; enables public schedule page
+endpoint = "https://api.cal.com/v2/bookings"  # for pipeline
+version  = "2024-08-13"                       # for pipeline
+event    = 1234567                            # for pipeline
 
 [actions]
 teacher_email  = "teacher@example.com"
@@ -46,6 +49,11 @@ teacher_name   = "Name Surname"
 subject_prefix = "[CourseCode] "
 email_domain   = "students.university.edu"
 titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]
+
+[uploads]                              # for pipeline
+url      = "https://api.upload.di.unimi.it/admin"
+username = "teacher@university.edu"
+session  = 1234
 ```
 
 Then copy `.envrc.example` to `.envrc` and set at minimum:

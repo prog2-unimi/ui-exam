@@ -161,6 +161,7 @@ name = "examui"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "flask" },
     { name = "graphviz" },
     { name = "gunicorn" },
@@ -170,6 +171,7 @@ dependencies = [
     { name = "pygount" },
     { name = "rapidfuzz" },
     { name = "requests" },
+    { name = "rich" },
     { name = "tree-sitter" },
     { name = "tree-sitter-java" },
     { name = "xlrd" },
@@ -183,6 +185,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.0" },
     { name = "flask" },
     { name = "graphviz", specifier = ">=0.20" },
     { name = "gunicorn" },
@@ -192,6 +195,7 @@ requires-dist = [
     { name = "pygount", specifier = ">=1.8" },
     { name = "rapidfuzz", specifier = ">=3.14" },
     { name = "requests" },
+    { name = "rich", specifier = ">=13.0" },
     { name = "tree-sitter" },
     { name = "tree-sitter-java" },
     { name = "xlrd" },

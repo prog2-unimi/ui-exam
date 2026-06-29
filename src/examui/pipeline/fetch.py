@@ -37,17 +37,18 @@ def _date_s2l(short: str) -> str:
 
 def fetch_uploads(
   conn: sqlite3.Connection,
-  conf: dict,
+  url: str,
+  username: str,
+  session_id: int,
   password: str,
   work_dir: Path,
 ) -> int:
-  url = conf['url']
-  resp = requests.post(f'{url}/login', json={'username': conf['username'], 'password': password})
+  resp = requests.post(f'{url}/login', json={'username': username, 'password': password})
   resp.raise_for_status()
   jwt = resp.json()['jwt']
   headers = {'authorization': f'Bearer {jwt}'}
 
-  session = requests.get(f'{url}/session/{conf["session"]}', headers=headers)
+  session = requests.get(f'{url}/session/{session_id}', headers=headers)
   session.raise_for_status()
   uploads = session.json()['session']['Uploads']
 
@@ -69,7 +70,7 @@ def fetch_uploads(
 
   upload_ids = [v['id'] for v in latest.values()]
   resp = requests.post(
-    f'{url}/session/lastfiles/{conf["session"]}?groupby=email',
+    f'{url}/session/lastfiles/{session_id}?groupby=email',
     headers=headers,
     json={'uploads': upload_ids},
   )
@@ -98,20 +99,22 @@ def fetch_uploads(
 
 def fetch_calendar(
   conn: sqlite3.Connection,
-  conf: dict,
+  endpoint: str,
+  version: str,
+  event: int,
   calcom_key: str,
   exam_date: str,
   enrolled_emails: list[str],
 ) -> int:
   resp = requests.get(
-    conf['endpoint'],
+    endpoint,
     headers={
       'Authorization': f'Bearer {calcom_key}',
-      'cal-api-version': conf['version'],
+      'cal-api-version': version,
       'Content-Type': 'application/json',
     },
     params={
-      'eventTypeId': conf['event'],
+      'eventTypeId': event,
       'status': 'upcoming,past',
       'afterStart': _date_s2l(exam_date),
       'take': 200,

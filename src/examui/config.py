@@ -19,7 +19,7 @@ with open(environ['EXAMUI_CONFIG'], 'rb') as _f:
 
 HISTORY_DIR      = Path(_cfg['paths']['history_dir'])
 EVALS_DIR        = Path(_cfg['paths']['evals_dir'])
-STUDENT_BASE     = Path(_cfg['paths']['student_base'])
+STUDENT_BASE     = Path(_cfg['paths']['work_dir']) / 'student'
 PROJECTS_DIR     = Path(_cfg['paths']['projects_dir'])
 SLOT_MINUTES     = _cfg['exam']['slot_minutes']
 TRIVIAL_PACKAGES = frozenset(_cfg['exam'].get('trivial_packages', ['client', 'clients', 'util', 'utils']))
@@ -32,5 +32,10 @@ EMAIL_DOMAIN     = _cfg['actions'].get('email_domain', '')
 TITOLI           = _cfg['actions'].get('titoli', ['lo studente', 'la studentessa', 'il dottore', 'la dottoressa'])
 VSCODE_TUNNEL    = _cfg.get('vscode', {}).get('tunnel')
 CAL_URL          = _cfg.get('booking', {}).get('cal_url', '')
-
-PIPELINE         = _cfg.get('pipeline', {})
+CAL_ENDPOINT     = _cfg.get('booking', {}).get('endpoint', '')
+CAL_VERSION      = _cfg.get('booking', {}).get('version', '')
+CAL_EVENT        = _cfg.get('booking', {}).get('event', 0)
+WORK_DIR         = Path(_cfg['paths']['work_dir'])
+UPLOADS_URL      = _cfg.get('uploads', {}).get('url', '')
+UPLOADS_USERNAME = _cfg.get('uploads', {}).get('username', '')
+UPLOADS_SESSION  = _cfg.get('uploads', {}).get('session', 0)

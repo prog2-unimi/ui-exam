@@ -153,3 +153,23 @@ def noshow_emails(
   history = {r['email'] for r in db.all_history(conn)}
   computed = {r['email'] for r in db.all_computed(conn)}
   return sorted(history - computed)
+
+
+def write_noshow(
+  conn: sqlite3.Connection,
+  exam_date: str,
+  evals_dir: Path,
+) -> Path:
+  history = {r['email']: r for r in db.all_history(conn)}
+  computed = {r['email'] for r in db.all_computed(conn)}
+
+  path = evals_dir / exam_date / 'noshow.csv'
+  rows = sorted(
+    (history[e]['matricola'], 'AS')
+    for e in history.keys() - computed
+    if history[e]['matricola']
+  )
+  pd.DataFrame(rows).to_csv(path, index=False, header=False)
+  return path
+
+

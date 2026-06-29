@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 
 import click
+from rich.console import Console
 
 from examui import config
 from examui.pipeline import db
@@ -30,13 +30,9 @@ def cli(ctx, verbose):
     format='%(levelname)s %(name)s %(message)s',
   )
 
-  pipeline = config.PIPELINE
-  if not pipeline:
-    raise click.ClickException('Missing [pipeline] section in config.toml')
-
   ctx.ensure_object(dict)
-  ctx.obj['work_dir'] = Path(pipeline['work_dir'])
-  ctx.obj['db_path'] = Path(pipeline['work_dir']) / 'pipeline.db'
+  ctx.obj['work_dir'] = config.WORK_DIR
+  ctx.obj['db_path'] = config.WORK_DIR / 'pipeline.db'
   ctx.obj['exam_date'] = _exam_date()
 
 
@@ -51,7 +47,10 @@ def fetch_uploads_cmd(ctx):
     raise click.ClickException('UPLOADS_PASSWORD env var not set')
 
   with db.connect(ctx.obj['db_path']) as conn:
-    count = fetch_uploads(conn, config.PIPELINE.get('uploads', {}), password, ctx.obj['work_dir'])
+    count = fetch_uploads(
+      conn, config.UPLOADS_URL, config.UPLOADS_USERNAME, config.UPLOADS_SESSION,
+      password, ctx.obj['work_dir'],
+    )
   click.echo(f'Fetched {count} uploads')
 
 
@@ -72,8 +71,8 @@ def fetch_calendar_cmd(ctx):
       history_emails = list(enrolled_emails(config.HISTORY_DIR, ctx.obj['exam_date']))
 
     count = fetch_calendar(
-      conn, config.PIPELINE.get('calendar', {}), calcom_key,
-      ctx.obj['exam_date'], history_emails,
+      conn, config.CAL_ENDPOINT, config.CAL_VERSION, config.CAL_EVENT,
+      calcom_key, ctx.obj['exam_date'], history_emails,
     )
   click.echo(f'Fetched {count} calendar bookings')
 
@@ -89,17 +88,17 @@ def load_history_cmd(ctx):
   click.echo(f'Loaded history for {count} students')
 
 
-@cli.command()
+@cli.command('compute')
 @click.option('--student', '-s', default=None, help='Process a single student (email username)')
 @click.option('--force', '-f', is_flag=True, help='Recompute even if source unchanged')
 @click.option('--workers', '-w', default=None, type=int, help='Parallel workers (default: auto)')
 @click.pass_context
-def compute(ctx, student, force, workers):
+def compute_cmd(ctx, student, force, workers):
   """Run gradle tests, javadoc, and pygount for each student."""
   from examui.pipeline.compute import compute_all
 
   if workers is None:
-    workers = min(os.cpu_count() or 4, 8)
+    workers = os.cpu_count() or 4
 
   with db.connect(ctx.obj['db_path']) as conn:
     done, skipped, errors = compute_all(
@@ -108,6 +107,7 @@ def compute(ctx, student, force, workers):
       student_base=config.STUDENT_BASE,
       projects_dir=config.PROJECTS_DIR,
       exam_date=ctx.obj['exam_date'],
+      trivial_packages=config.TRIVIAL_PACKAGES,
       force=force,
       workers=workers,
       student_filter=student,
@@ -115,21 +115,19 @@ def compute(ctx, student, force, workers):
   click.echo(f'Done: {done} computed, {skipped} skipped, {errors} errors')
 
 
-@cli.command()
+@cli.command('collect')
 @click.pass_context
-def collect(ctx):
-  """Assemble marks.tsv from DB data and history."""
-  from examui.pipeline.collect import collect_marks, noshow_emails
+def collect_cmd(ctx):
+  """Assemble marks.tsv and noshow.csv from DB data and history."""
+  from examui.pipeline.collect import collect_marks, write_noshow
 
+  exam_date = ctx.obj['exam_date']
   with db.connect(ctx.obj['db_path']) as conn:
-    path = collect_marks(conn, ctx.obj['exam_date'], config.EVALS_DIR)
-    noshow = noshow_emails(conn)
+    marks_path = collect_marks(conn, exam_date, config.EVALS_DIR)
+    noshow_path = write_noshow(conn, exam_date, config.EVALS_DIR)
 
-  click.echo(f'Wrote {path}')
-  if noshow:
-    click.echo(f'No-shows ({len(noshow)}):')
-    for email in noshow:
-      click.echo(f'  {email}')
+  click.echo(f'Wrote {marks_path}')
+  click.echo(f'Wrote {noshow_path}')
 
 
 @cli.command()
@@ -137,11 +135,22 @@ def collect(ctx):
 @click.pass_context
 def run(ctx, workers):
   """Run the full pipeline: load-history + fetch + compute + collect."""
+  console = Console()
+
+  console.rule('[bold]Step 1/5: Loading history')
   ctx.invoke(load_history_cmd)
+
+  console.rule('[bold]Step 2/5: Fetching uploads')
   ctx.invoke(fetch_uploads_cmd)
+
+  console.rule('[bold]Step 3/5: Fetching calendar')
   ctx.invoke(fetch_calendar_cmd)
-  ctx.invoke(compute, workers=workers)
-  ctx.invoke(collect)
+
+  console.rule('[bold]Step 4/5: Computing')
+  ctx.invoke(compute_cmd, workers=workers)
+
+  console.rule('[bold]Step 5/5: Collecting marks')
+  ctx.invoke(collect_cmd)
 
 
 @cli.command()

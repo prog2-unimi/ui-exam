@@ -16,9 +16,16 @@
 
   <h4 class="mb-3">
     {{ course_name }}
+    {% if not tba %}
     <span class="text-muted fw-normal fs-6">— Appello del {{ exam_date }}</span>
+    {% endif %}
   </h4>
 
+  {% if tba %}
+  <div class="alert alert-info">
+    Le date degli orali saranno comunicate prossimamente.
+  </div>
+  {% else %}
   <div class="alert alert-warning mb-3">
     <p class="mb-1">Gli studenti elencati (in ordine crescente di matricola) nella seguente tabella sono <strong>ammessi all'orale</strong>.</p>
     <ul class="mb-0">
@@ -59,6 +66,7 @@
     <span>Prenotati: <strong class="text-success">{{ booked }}</strong></span>
     <span>Da prenotare: <strong class="text-danger">{{ total - booked }}</strong></span>
   </div>
+  {% endif %}
 
 </div>
 </body>

@@ -5,7 +5,7 @@ import dataclasses
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request
 from examui import config
 from examui.models.store import all_students, exam_date, marks_mtime, UnderEvaluationEvent
 
@@ -70,6 +70,9 @@ def _fmt_slot(slot: datetime) -> str:
 
 @bp.get('/api/schedule/public')
 def public_schedule():
+  if request.args.get('tba'):
+    return render_template('public_schedule.html', course_name=config.COURSE_NAME, tba=True)
+
   exam_dt  = datetime.strptime(exam_date(), '%y%m%d')
   exam_fmt = f'{exam_dt.day} {_MESI[exam_dt.month - 1]} {exam_dt.year}'
   mtime    = marks_mtime()

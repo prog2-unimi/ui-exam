@@ -13,8 +13,11 @@ source "$APPDIR/.envrc"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
+QS=""
+if [ "${1:-}" = "--tba" ]; then QS="?tba=1"; fi
+
 echo "Fetching public schedule..."
-curl -sf "http://localhost:8765/api/schedule/public" > "$TMPDIR/index.html"
+curl -sf "http://localhost:8765/api/schedule/public${QS}" > "$TMPDIR/index.html"
 
 # Disable any build command Netlify may have configured for this site
 cat > "$TMPDIR/netlify.toml" <<'EOF'

@@ -39,10 +39,10 @@ titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"
 
 Two env vars are intentionally kept outside the TOML because they are ephemeral simulation overrides:
 
-| Variable | Format   | Effect                                               |
-|----------|----------|------------------------------------------------------|
+| Variable | Format   | Effect                                                    |
+|----------|----------|-----------------------------------------------------------|
 | `TODAY`  | `YYMMDD` | Overrides the date used to select the active exam session |
-| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace`       |
+| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace`            |
 
 ## Running
 
@@ -140,6 +140,8 @@ TSV with one row per student who turned in source for the current exam. Pre-popu
 
 - Missing file → all enrolled students treated as absent for the current date (exam not yet prepared).
 - Only `mark` and `note` columns are ever modified by the UI; all other columns are read-only.
+
+**Operational constraint:** `marks.tsv` is only read for the current exam date (`exam_date()`). Once a newer iscrizioni XLS is added, past `evals/<date>/marks.tsv` data (provisional marks, metrics) becomes invisible in the UI. Past notes files still pull their date into the student's history, but without a corresponding verbale entry the event renders as absent (mark=None) and the note content is not attached. Download verbali for a past exam **before** creating the next exam's iscrizioni to avoid this gap. Once the verbale is in place, notes reattach correctly.
 
 ### `EVALS_DIR/<date>/notes/<email>.md`
 
@@ -296,6 +298,7 @@ uv run pytest tests/
 
 - **Primitive types not in `uses`**: `_collect_type_refs` only visits `type_identifier` nodes. Primitive types (`int`, `double`, etc.) are represented by `integral_type`/`floating_point_type` nodes in tree-sitter-java and are therefore invisible to `class_uses` — they never appear in any `uses` set. Use reference types in tests that need to assert on parameter/return/local uses.
 - **Abstract class detection broken**: `child_by_field_name('modifiers')` returns `None` for `class_declaration` in the installed tree-sitter-java version, so `class_uses` always returns `kind='class'` even for `abstract class` declarations. The `'abstract'` kind is effectively dead code until this is fixed upstream or the parsing is reworked.
+- **Static access detection via uppercase heuristic**: `_walk_uses` detects static method calls (`UtilityClass.method()`) and static field access (`Constants.FIELD`) by checking if a `method_invocation`/`field_access` node's object is a plain `identifier` starting with uppercase. These are added to the `local` uses set. The heuristic relies on the Java naming convention (PascalCase for classes, camelCase for variables) and is reliable for idiomatic code. Without this, utility classes with only static methods would be invisible in the dependency graph.
 
 ### `lang/parsing.py`
 
@@ -446,6 +449,19 @@ Status indicator is `#tab-note-status` (in the tab label itself), not a separate
 ---
 
 ## JavaScript
+
+### Filter & sort persistence convention
+
+Every list view (DataTables page) must persist its navbar filter state and sort order across navigations using `sessionStorage`. The pattern:
+
+- A `FILTER_KEY` constant (`'<page>-filters'`).
+- `saveFilters()` — serialises all filter/sort state to `sessionStorage[FILTER_KEY]`.
+- `restoreFilters()` — reads `sessionStorage[FILTER_KEY]`, sets DOM controls, applies sort/search to the DataTable. Called once before the first `table.draw()`.
+- An `onChange()` helper that calls `saveFilters()` then `table.draw()`, wired to each filter control's `change` event.
+- `table.on('order.dt', saveFilters)` for sort persistence.
+- Search input wires `saveFilters()` after `table.search().draw()`.
+
+See `history.js` and `schedule.js` for the reference implementations. New list views must follow the same structure.
 
 ### `static/base.css`
 

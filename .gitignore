@@ -2,11 +2,11 @@ __pycache__/
 .DS_Store
 .envrc
 .gunicorn.pid
+.netlify
 .venv/
 *.egg-info/
 *.pyc
 *.pyo
 config.toml
 dist/
-# Local Netlify folder
-.netlify
+po/

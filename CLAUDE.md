@@ -33,6 +33,19 @@ teacher_name   = "Name Surname"
 subject_prefix = "[CourseCode] "
 email_domain   = "students.university.edu"
 titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]
+
+[pipeline]                                   # optional; only needed for exam-pipeline CLI
+work_dir = "/path/to/work/dir"               # ephemeral directory for pipeline artifacts
+
+[pipeline.uploads]
+url      = "https://api.upload.di.unimi.it/admin"
+username = "teacher@university.edu"
+session  = 1234                              # upload session ID (changes per semester)
+
+[pipeline.calendar]
+endpoint = "https://api.cal.com/v2/bookings"
+version  = "2024-08-13"
+event    = 1234567                           # cal.com event type ID
 ```
 
 `tomllib` (stdlib ≥ 3.11) is used to parse it — no extra dependency.
@@ -43,6 +56,13 @@ Two env vars are intentionally kept outside the TOML because they are ephemeral 
 |----------|----------|-----------------------------------------------------------|
 | `TODAY`  | `YYMMDD` | Overrides the date used to select the active exam session |
 | `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace`            |
+
+Pipeline-only env vars (secrets, not in TOML):
+
+| Variable           | Used by              | Meaning                                       |
+|--------------------|----------------------|-----------------------------------------------|
+| `UPLOADS_PASSWORD` | `fetch-uploads`      | Password for the uploads API                  |
+| `CALCOM_KEY`       | `fetch-calendar`     | cal.com API bearer token                      |
 
 ## Running
 
@@ -510,6 +530,72 @@ DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. 
 - `tree`, `all_symbols`, `file`, `deps` in `models/source.py`: cached per email (or email+relpath).
 - Live I/O (`provisional`, `annotation`, `note` on `UnderEvaluationMark`) intentionally **not** cached.
 - Single-worker gunicorn is a hard requirement.
+
+---
+
+## Data pipeline (`src/examui/pipeline/`)
+
+Standalone Click CLI (`exam-pipeline`) that replaces the former Snakemake pipeline in the `exams/` repo. It downloads student submissions, runs automated grading (gradle test, javadoc, pygount SLOC), and assembles `marks.tsv`. Registered as a `[project.scripts]` entry point in `pyproject.toml`.
+
+### Design decisions
+
+- **Standalone CLI, not Flask CLI.** The pipeline imports `examui.config` for paths but does NOT create the Flask app — `create_app()` does an expensive warmup (reads all XLS, parses all source trees) that the pipeline doesn't need.
+- **SQLite as ephemeral store** (`<work_dir>/pipeline.db`). Replaces the scattered JSON/TSV intermediate files from the Snakemake pipeline. Tables: `uploads`, `calendar`, `history`, `computed`. The DB can be deleted and rebuilt at any time — it is not committed to git.
+- **Content hashing** (SHA-256 of each student's `consegna.zip`). Stored in the `computed` table. The `compute` command skips a student if their hash matches (unless `--force`). This replaces Snakemake's timestamp-based caching, which caused cascade reruns when files were re-downloaded with new timestamps but identical content.
+- **ThreadPoolExecutor** for the `compute` step — the bottleneck is subprocess calls (gradle, pygount), not CPU-bound Python, so threads suffice. Default workers: `min(cpu_count, 8)`.
+- **Raw stdout files** stay on the filesystem at `STUDENT_BASE/<email>/computed/` so the UI's Details tab can serve them without changes. Only structured metrics go into SQLite.
+- **Shared XLS parsing** via `src/examui/data/history.py`. Both `all_students()` (web app) and `collect` (pipeline) call `read_enrollments()` and `read_verbali()` — single source of truth for iscrizioni/verbali parsing.
+- **Only `evals/` content is persistent.** `marks.tsv` and `notes/<email>.md` are the archival outputs (committed to git). Everything else (`work_dir/`, `pipeline.db`, `source/`, `javadoc/`, `computed/`) is ephemeral and regenerable.
+
+### Commands
+
+```
+exam-pipeline load-history                    # populate history table from XLS files
+exam-pipeline fetch-uploads                   # download + extract student submissions
+exam-pipeline fetch-calendar                  # download + fuzzy-match calendar bookings
+exam-pipeline compute [-s EMAIL] [-f] [-w N]  # gradle test/javadoc + pygount per student
+exam-pipeline collect                         # assemble marks.tsv from DB + history
+exam-pipeline run [-w N]                      # chain all five steps above
+exam-pipeline status                          # show counts per table
+```
+
+All commands require `EXAMUI_CONFIG` to be set. `fetch-uploads` requires `UPLOADS_PASSWORD`, `fetch-calendar` requires `CALCOM_KEY`.
+
+### Data flow
+
+```
+load-history ───→ DB history table (from iscrizioni + verbali XLS)
+
+fetch-uploads ──→ work_dir/uploaded/<email>@.../consegna.zip
+                   + DB uploads table
+
+fetch-calendar ─→ DB calendar table
+
+compute ────────→ STUDENT_BASE/<email>/source/          (extracted project)
+                   STUDENT_BASE/<email>/javadoc/          (built HTML)
+                   STUDENT_BASE/<email>/computed/*.stdout  (raw output)
+                   + DB computed table
+
+collect ────────→ EVALS_DIR/<date>/marks.tsv (preserving mark/note from UI)
+```
+
+### Module structure
+
+- `pipeline/__init__.py` — Click CLI group + all command definitions. Reads config, manages DB connection lifecycle.
+- `pipeline/db.py` — SQLite schema (4 tables, all `CREATE TABLE IF NOT EXISTS`), context-managed `connect()`, typed upsert/read helpers.
+- `pipeline/fetch.py` — `fetch_uploads()` (uploads API → zip → extract), `fetch_calendar()` (cal.com API → fuzzy-match → DB).
+- `pipeline/compute.py` — `compute_all()` dispatches `_compute_one()` via ThreadPoolExecutor. Each student: hash check → extract source (template zip + student zip + spotlessApply) → `gradlew test` → `gradlew javadoc` → `pygount` → upsert DB. DB writes are batched in the main thread after all futures complete (avoids multi-threaded SQLite access).
+- `pipeline/collect.py` — `load_history()` reads XLS via shared `data.history` and populates the history table. `collect_marks()` joins all DB tables, merges with existing marks.tsv (preserving `mark`/`note` columns written by the UI), writes the result. `noshow_emails()` returns enrolled students with no submission.
+
+### Shared data module (`src/examui/data/`)
+
+`data/history.py` — XLS parsing extracted from `models/store.py` so both the web app and the pipeline use the same code:
+
+- `read_enrollments(history_dir)` → `(mat2email, email2mat, names, enrollments)` from all iscrizioni XLS.
+- `read_verbali(history_dir, course_name)` → list of `(matricola, date, voto, stato, name)` tuples from all verbali XLS.
+- `enrolled_emails(history_dir, exam_date)` → frozenset of email usernames for one exam date.
+
+`models/store.py`'s `all_students()` calls these shared functions and builds `Mark`/`ExamEvent`/`Student` objects. The pipeline's `collect` calls them and produces flat DB rows. Same parsing logic, no duplication.
 
 ---
 

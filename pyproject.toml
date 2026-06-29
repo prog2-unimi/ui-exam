@@ -17,7 +17,13 @@ dependencies = [
     "tree-sitter-java",
     "openpyxl>=3.1.5",
     "graphviz>=0.20",
+    "requests",
+    "rapidfuzz>=3.14",
+    "pygount>=1.8",
 ]
+
+[project.scripts]
+exam-pipeline = "examui.pipeline:cli"
 
 [dependency-groups]
 dev = ["ruff", "pytest"]

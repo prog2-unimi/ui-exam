@@ -32,3 +32,5 @@ EMAIL_DOMAIN     = _cfg['actions'].get('email_domain', '')
 TITOLI           = _cfg['actions'].get('titoli', ['lo studente', 'la studentessa', 'il dottore', 'la dottoressa'])
 VSCODE_TUNNEL    = _cfg.get('vscode', {}).get('tunnel')
 CAL_URL          = _cfg.get('booking', {}).get('cal_url', '')
+
+PIPELINE         = _cfg.get('pipeline', {})

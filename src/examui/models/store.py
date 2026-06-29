@@ -10,6 +10,7 @@ from zipfile import ZipFile
 import pandas as pd
 
 from examui import config
+from examui.data.history import read_enrollments, read_verbali
 from examui.models.events import ExamEvent, Mark, Metrics, Student
 
 
@@ -125,46 +126,22 @@ def marks_mtime() -> datetime | None:
 
 @cache
 def all_students() -> dict[str, Student]:
-  mat2email: dict[str, str] = {}
-  email2mat: dict[str, str] = {}
-  names: dict[str, str] = {}
-  enrollments: dict[str, set[str]] = {}
-
   current_date = exam_date()
 
-  # ── iscrizioni ────────────────────────────────────────────────────────────
-  for xls in sorted((config.HISTORY_DIR / 'iscrizioni').glob('*.xls')):
-    date = xls.stem
-    df = pd.read_excel(xls, header=0, converters={'Matricola': str})
-    for _, row in df.iterrows():
-      mat = str(row['Matricola']).strip()
-      if '0000' in mat:
-        continue
-      email = str(row['Email']).split('@')[0]
-      mat2email[mat] = email
-      email2mat[email] = mat
-      enrollments.setdefault(email, set()).add(date)
-      if email not in names and 'Cognome' in df.columns:
-        names[email] = f'{row["Cognome"]} {row["Nome"]}'.strip()
+  mat2email, email2mat, names, enrollments = read_enrollments(config.HISTORY_DIR)
 
-  # ── verbali ───────────────────────────────────────────────────────────────
   results: dict[str, dict[str, Mark]] = {}
-
-  for xls in sorted((config.HISTORY_DIR / 'verbali').glob('*.xls')):
-    df = pd.read_excel(xls, header=0)
-    prog2 = df[df['Descrizione insegnamento'].str.casefold() == config.COURSE_NAME.casefold()]
-    for _, row in prog2.iterrows():
-      mat = str(row['Matricola']).strip()
-      email = mat2email.get(mat)
-      if not email:
-        continue
-      try:
-        mark = Mark.from_verbale(str(row['Voto']), str(row['Stato Esito']))
-      except ValueError:
-        continue
-      results.setdefault(email, {})[row['Data appello'].strftime('%y%m%d')] = mark
-      if email not in names:
-        names[email] = str(row['Nominativo studente']).strip()
+  for mat, date_str, voto, stato, name in read_verbali(config.HISTORY_DIR, config.COURSE_NAME):
+    email = mat2email.get(mat)
+    if not email:
+      continue
+    try:
+      mark = Mark.from_verbale(voto, stato)
+    except ValueError:
+      continue
+    results.setdefault(email, {})[date_str] = mark
+    if email not in names and name:
+      names[email] = name
 
   # ── notes (all dates — current-date long notes are still read live) ───────
   notes: dict[str, dict[str, str]] = {}

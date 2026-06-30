@@ -1,23 +1,59 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
+#
+# Runs a throwaway gunicorn instance on its own port so the published page
+# always reflects the latest data, even if the long-running tunnel server
+# (bin/server, port 8765) is stale or not running. Killed right after the
+# schedule page is fetched.
 set -euo pipefail
 
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 APPDIR="$(dirname "$(realpath "$0")")/.."
+PORT=8766
 
 if [ ! -f "$APPDIR/.env" ]; then echo "ERROR: .env not found"; exit 1; fi
 source "$APPDIR/.env"
 
 TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+cd "$APPDIR"
+
+GUNICORN_PID=""
+cleanup() {
+    if [ -n "$GUNICORN_PID" ]; then
+        kill "$GUNICORN_PID" 2>/dev/null || true
+        wait "$GUNICORN_PID" 2>/dev/null || true
+    fi
+    rm -rf "$TMPDIR"
+}
+trap cleanup EXIT
+
+echo "Starting temporary server on port $PORT..."
+uv run gunicorn --workers=1 --bind="127.0.0.1:$PORT" 'examui:create_app()' \
+    > "$TMPDIR/gunicorn.log" 2>&1 &
+GUNICORN_PID=$!
+disown
+
+for i in $(seq 1 60); do
+    if curl -sf -o /dev/null "http://localhost:$PORT/api/schedule/public"; then break; fi
+    if ! kill -0 "$GUNICORN_PID" 2>/dev/null; then
+        echo "ERROR: server failed to start — log follows:" >&2
+        cat "$TMPDIR/gunicorn.log" >&2
+        exit 1
+    fi
+    sleep 1
+done
 
 QS=""
 if [ "${1:-}" = "--tba" ]; then QS="?tba=1"; fi
 
 echo "Fetching public schedule..."
-curl -sf "http://localhost:8765/api/schedule/public${QS}" > "$TMPDIR/index.html"
+curl -sf "http://localhost:$PORT/api/schedule/public${QS}" > "$TMPDIR/index.html"
+
+kill "$GUNICORN_PID" 2>/dev/null || true
+wait "$GUNICORN_PID" 2>/dev/null || true
+GUNICORN_PID=""
 
 # Disable any build command Netlify may have configured for this site
 cat > "$TMPDIR/netlify.toml" <<'EOF'

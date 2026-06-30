@@ -6,44 +6,45 @@ Flask web application used during oral exams for PROGRAMMAZIONE II. It shows eac
 
 ## Configuration
 
-All stable configuration lives in a TOML file pointed to by the `EXAMUI_CONFIG` env var (set in `.envrc`). Copy `config.toml.example` to `config.toml` and fill in your values:
+All stable configuration lives in a TOML file pointed to by the `EXAMUI_CONFIG` env var (set in `.env`). Copy `config.toml.example` to `config.toml` and fill in your values:
 
 ```toml
 [paths]
 history_dir  = "/path/to/exams/history"
 evals_dir    = "/path/to/exams/evals"
-projects_dir = "/path/to/projects"
 work_dir     = "/path/to/work/dir"               # ephemeral directory for pipeline artifacts
 
 [exam]
 slot_minutes     = 30
-trivial_packages = ["client", "clients", "util", "utils"]
+trivial_packages = ["client", "clients", "util", "utils"]  # optional, default shown
 course_name      = "Programmazione II"
-course_degree    = "Informatica"           # optional, for giustifica
+course_degree    = "Informatica"
+teacher_email    = "teacher@example.com"
+teacher_name     = "Name Surname"
+subject_prefix   = "[CourseCode] "
+email_domain     = "students.university.edu"
+titoli           = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]  # optional, default shown
 
 [vscode]
-tunnel = "santinivm"          # optional; enables the "Open in VSCode" button in the Source tab
+tunnel = "santinivm"          # enables the "Open in VSCode" button in the Source tab
 
 [booking]
-cal_url  = "https://cal.com/username/event-name"   # optional; enables the public schedule page
-endpoint = "https://api.cal.com/v2/bookings"       # cal.com API endpoint (for pipeline)
-version  = "2024-08-13"                            # cal.com API version (for pipeline)
-event    = 1234567                                 # cal.com event type ID (for pipeline)
+cal_url  = "https://cal.com/username/event-name"   # enables the public schedule page
+endpoint = "https://api.cal.com/v2/bookings"       # cal.com API endpoint
+version  = "2024-08-13"                            # cal.com API version
+event    = 1234567                                 # cal.com event type ID
 
-[actions]
-teacher_email  = "teacher@example.com"
-teacher_name   = "Name Surname"
-subject_prefix = "[CourseCode] "
-email_domain   = "students.university.edu"
-titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]
-
-[uploads]                                    # only needed for exam-pipeline CLI
+[uploads]
 url      = "https://api.upload.di.unimi.it/admin"
 username = "teacher@university.edu"
 session  = 1234                              # upload session ID (changes per semester)
 ```
 
 `tomllib` (stdlib ≥ 3.11) is used to parse it — no extra dependency.
+
+Every key shown above is mandatory except `trivial_packages` and `titoli`, which fall back to the defaults shown if omitted. `config.py`'s `_get(section, key, default_value)` helper enforces this: missing keys/sections raise `ConfigError` with a message naming the section, key, and config file path (instead of a bare `KeyError`), so misconfiguration fails loudly at import time rather than surfacing later as an `AttributeError` deep in a view. This applies even to fields used by optional UI features (e.g. `vscode.tunnel`, `booking.cal_url`) — every `examui` deployment must fill in the whole file, including pipeline-only sections (`uploads`, the pipeline-specific `booking` keys), regardless of whether the pipeline CLI is actually used.
+
+Two paths are derived by convention rather than configured: `STUDENT_BASE` is always `work_dir/student`, and `PROJECTS_DIR` is always `history_dir/projects`. Neither has a TOML key — `config.py` builds them from `paths.work_dir` and `paths.history_dir` respectively.
 
 Two env vars are intentionally kept outside the TOML because they are ephemeral simulation overrides:
 
@@ -64,11 +65,11 @@ Pipeline-only env vars (secrets, not in TOML):
 ### Local development
 
 ```bash
-source .envrc   # or: direnv allow
+source .env   # or: direnv allow
 ./bin/debug
 ```
 
-Runs gunicorn with `--workers=1 --reload`. The `.envrc` must export `EXAMUI_CONFIG` pointing at a populated `config.toml`. `TODAY` defaults to today's date (`YYMMDD`); override to pin which day's oral slots are shown in the schedule view.
+Runs gunicorn with `--workers=1 --reload`. `.env` must export `EXAMUI_CONFIG` pointing at a populated `config.toml`. `TODAY` defaults to today's date (`YYMMDD`); override to pin which day's oral slots are shown in the schedule view.
 
 `NOW` (`HHMM`) overrides the current time used by `/api/pace`. Combined with `TODAY` this lets you simulate any point during the exam day without touching real data:
 
@@ -84,9 +85,9 @@ TODAY=260615 NOW=1145 ./bin/debug
 command="/path/to/bin/server",no-pty,no-agent-forwarding,no-X11-forwarding,permitopen="localhost:8765" ssh-ed25519 AAAA...
 ```
 
-It sources `.envrc` from the project root, starts gunicorn on `127.0.0.1:8765`, and kills it when the SSH connection closes. Logs to `/tmp/examui.log`.
+It sources `.env` from the project root, starts gunicorn on `127.0.0.1:8765`, and kills it when the SSH connection closes. Logs to `/tmp/examui.log`.
 
-`./bin/client` runs on the tablet (Termux). It sources `.envrc` from the project root for:
+`./bin/client` runs on the tablet (Termux). It sources `.env` from the project root for:
 
 | Variable | Meaning |
 | -------- | ------- |
@@ -100,7 +101,7 @@ Single-worker gunicorn is a hard requirement (in-process `@cache`).
 
 ### `bin/publish` — deploy the public schedule page
 
-Fetches `GET /api/schedule/public` from the running local app, writes a `netlify.toml` (to suppress any build command), and deploys to the Netlify site via `netlify deploy --prod`. Reads `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` from `.envrc`. Requires `netlify-cli` installed on the server (`npm install -g netlify-cli`). The target site is `prog2unimi-esame.netlify.app`.
+Starts a throwaway gunicorn instance on port `8766` (separate from the tunnel server on `8765`, single-worker as required) so the published page reflects the latest data regardless of whether the tunnel server is running or stale. Polls `/api/schedule/public` until the warmed-up app responds (up to 60s; `create_app()` warmup runs synchronously before gunicorn binds, so a response means the app is fully ready), fetches the page, kills the temporary server, writes a `netlify.toml` (to suppress any build command), and deploys to the Netlify site via `netlify deploy --prod`. Reads `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` from `.env`. Requires `netlify-cli` installed on the server (`npm install -g netlify-cli`). The target site is `prog2unimi-esame.netlify.app`.
 
 ### `bin/giustifica` — CLI certificate generator
 
@@ -110,7 +111,7 @@ Generates a giustifica HTML file from the command line via `curl`:
 ./bin/giustifica <email-fragment> <titolo> [inizio] [fine]
 ```
 
-Sources `.envrc` for `EXAMUI_PORT` (default `8765`). Accepts a partial email address — the server resolves it to a unique match; prints matching candidates and exits if ambiguous. Saves output as `giustifica-<fragment>.html` in the current directory. Uses `--connect-timeout 5` so a missing server fails immediately with a clear message.
+Sources `.env` for `EXAMUI_PORT` (default `8765`). Accepts a partial email address — the server resolves it to a unique match; prints matching candidates and exits if ambiguous. Saves output as `giustifica-<fragment>.html` in the current directory. Uses `--connect-timeout 5` so a missing server fails immediately with a clear message.
 
 ---
 
@@ -365,7 +366,7 @@ Each entry in `students` includes: `email`, `name`, `matricola`, `attempts`, `fi
 
 ### `views/schedule.py` — `GET /schedule`, `GET /api/pace`, `GET /api/schedule/public`
 
-All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark`, `current_mark` (from `live.mark.provisional`), and `matricola`. Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Also computes `slot_dates` (sorted list of distinct `YYYY-MM-DD` strings from booked slots). Passes `rows`, `today` (ISO date string), `slot_dates`, and the `[actions]` config values to `schedule.html`.
+All `UnderEvaluationEvent` students for the current exam. Includes full `Metrics` fields (via `dataclasses.asdict`) plus `summary_mark`, `current_mark` (from `live.mark.provisional`), and `matricola`. Sorted by `slot`. Each row also carries `is_current` and `is_next` booleans — `True` for the first and second unmarked students (non-empty `current_mark`) with a booked slot, used by `schedule.js` to render caret icons. Also computes `slot_dates` (sorted list of distinct `YYYY-MM-DD` strings from booked slots). Passes `rows`, `today` (ISO date string), `slot_dates`, and the teacher/email config values (`TEACHER_EMAIL`, `TEACHER_NAME`, `SUBJECT_PREFIX`, `EMAIL_DOMAIN`, `TITOLI`) to `schedule.html`.
 
 `GET /api/pace` — returns schedule pace as JSON. Reads `provisional` live (not cached) for all slotted students. Only considers slots booked for **today**. Response: `{visible, delta}`. `visible` is `false` when no slots exist for today, when `now` is more than 60 minutes before the first slot, or when all today's students already have a provisional mark. `delta` = `(next_pending_slot − now)` in minutes; positive = ahead, negative = behind. Uses `config.now()` so `NOW` env override applies.
 
@@ -537,7 +538,7 @@ Standalone Click CLI (`exam-pipeline`) that replaces the former Snakemake pipeli
 - **Standalone CLI, not Flask CLI.** The pipeline imports `examui.config` for paths but does NOT create the Flask app — `create_app()` does an expensive warmup (reads all XLS, parses all source trees) that the pipeline doesn't need.
 - **SQLite as ephemeral store** (`<work_dir>/pipeline.db`). Replaces the scattered JSON/TSV intermediate files from the Snakemake pipeline. Tables: `uploads`, `calendar`, `history`, `computed`. The DB can be deleted and rebuilt at any time — it is not committed to git.
 - **Content hashing** (SHA-256 of each student's `consegna.zip`). Stored in the `computed` table. The `compute` command skips a student if their hash matches (unless `--force`). This replaces Snakemake's timestamp-based caching, which caused cascade reruns when files were re-downloaded with new timestamps but identical content.
-- **ThreadPoolExecutor** for the `compute` step — the bottleneck is subprocess calls (gradle, pygount), not CPU-bound Python, so threads suffice. Default workers: `min(cpu_count, 8)`.
+- **ThreadPoolExecutor** for the `compute` step — the bottleneck is subprocess calls (gradle, pygount), not CPU-bound Python, so threads suffice. Default workers: `os.cpu_count()`.
 - **Raw stdout files** stay on the filesystem at `STUDENT_BASE/<email>/computed/` so the UI's Details tab can serve them without changes. Only structured metrics go into SQLite.
 - **Shared XLS parsing** via `src/examui/data/history.py`. Both `all_students()` (web app) and `collect` (pipeline) call `read_enrollments()` and `read_verbali()` — single source of truth for iscrizioni/verbali parsing.
 - **Only `evals/` content is persistent.** `marks.tsv` and `notes/<email>.md` are the archival outputs (committed to git). Everything else (`work_dir/`, `pipeline.db`, `source/`, `javadoc/`, `computed/`) is ephemeral and regenerable.
@@ -554,7 +555,7 @@ exam-pipeline run [-w N]                      # chain all five steps above
 exam-pipeline status                          # show counts per table
 ```
 
-All commands require `EXAMUI_CONFIG` to be set. `fetch-uploads` requires `UPLOADS_PASSWORD`, `fetch-calendar` requires `CALCOM_KEY`.
+All commands require `EXAMUI_CONFIG` to be set. `fetch-uploads` requires `UPLOADS_PASSWORD`, `fetch-calendar` requires `CALCOM_KEY`. `bin/pipeline` is a thin wrapper (`exec uv run exam-pipeline "$@"`); since `.envrc` does `PATH_add bin`, direnv users can run `pipeline <command>` directly instead of `uv run exam-pipeline <command>`.
 
 ### Data flow
 

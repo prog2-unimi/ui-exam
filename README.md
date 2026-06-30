@@ -25,38 +25,37 @@ Copy `config.toml.example` to `config.toml` and fill in your values:
 [paths]
 history_dir  = "/path/to/exams/history"
 evals_dir    = "/path/to/exams/evals"
-projects_dir = "/path/to/projects"        # enables the Teacher view
 work_dir     = "/path/to/work/dir"        # ephemeral directory for pipeline artifacts
 
 [exam]
 slot_minutes     = 30
-trivial_packages = ["client", "clients", "util", "utils"]
+trivial_packages = ["client", "clients", "util", "utils"]  # optional, default shown
 course_name      = "Programmazione II"
-course_degree    = "Informatica"       # optional, for giustifica
+course_degree    = "Informatica"
+teacher_email    = "teacher@example.com"
+teacher_name     = "Name Surname"
+subject_prefix   = "[CourseCode] "
+email_domain     = "students.university.edu"
+titoli           = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]  # optional, default shown
 
 [vscode]
-tunnel = "santinivm"                   # optional; enables "Open in VSCode" button
+tunnel = "santinivm"                   # enables "Open in VSCode" button
 
 [booking]
-cal_url  = "https://cal.com/user/event" # optional; enables public schedule page
-endpoint = "https://api.cal.com/v2/bookings"  # for pipeline
-version  = "2024-08-13"                       # for pipeline
-event    = 1234567                            # for pipeline
+cal_url  = "https://cal.com/user/event" # enables public schedule page
+endpoint = "https://api.cal.com/v2/bookings"
+version  = "2024-08-13"
+event    = 1234567
 
-[actions]
-teacher_email  = "teacher@example.com"
-teacher_name   = "Name Surname"
-subject_prefix = "[CourseCode] "
-email_domain   = "students.university.edu"
-titoli         = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]
-
-[uploads]                              # for pipeline
+[uploads]
 url      = "https://api.upload.di.unimi.it/admin"
 username = "teacher@university.edu"
 session  = 1234
 ```
 
-Then copy `.envrc.example` to `.envrc` and set at minimum:
+Every key above is mandatory except `trivial_packages` and `titoli` — a missing key raises a clear error naming the section, key, and file. This includes pipeline-only sections (`uploads`, and the pipeline-specific `booking` keys): they must be filled in even if you never run `exam-pipeline`.
+
+Then create a `.env` file in the project root with at least:
 
 ```shell
 export EXAMUI_CONFIG="$(pwd)/config.toml"
@@ -64,6 +63,8 @@ export EXAMUI_CONFIG="$(pwd)/config.toml"
 export NETLIFY_AUTH_TOKEN=<personal-access-token>
 export NETLIFY_SITE_ID=<site-id>
 ```
+
+`bin/` scripts source `.env` directly. If you use direnv, `.envrc` loads it automatically (`dotenv .env`) and also adds `bin/` to your `PATH` (`PATH_add bin`).
 
 Two additional env vars are available for development time simulation (not in the TOML):
 

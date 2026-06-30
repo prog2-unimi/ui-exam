@@ -22,6 +22,7 @@ dependencies = [
     "pygount>=1.8",
     "click>=8.0",
     "rich>=13.0",
+    "mosspy>=1.0",
 ]
 
 [project.scripts]
@@ -31,8 +32,9 @@ exam-pipeline = "examui.pipeline:cli"
 dev = ["ruff", "pytest"]
 
 [tool.ruff]
-line-length  = 100
-indent-width = 2
+line-length     = 100
+indent-width    = 2
+extend-include  = ["bin/moss"]
 
 [tool.ruff.format]
 indent-style  = "space"

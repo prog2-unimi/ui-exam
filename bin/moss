@@ -1,0 +1,101 @@
+#!/usr/bin/env -S uv run python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026  Massimo Santini
+
+import argparse
+import os
+import re
+import sys
+from pathlib import Path
+
+import mosspy
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, MofNCompleteColumn
+
+
+def main():
+  parser = argparse.ArgumentParser(
+    description='Submit student Java sources to MOSS for plagiarism detection.'
+  )
+  parser.add_argument(
+    'students_dir', type=Path, help='path to the students directory (e.g. ../so/student)'
+  )
+  parser.add_argument(
+    '--exclude',
+    nargs='+',
+    default=['clients', 'util'],
+    metavar='DIR',
+    help='top-level source dirs to skip (default: clients util)',
+  )
+  parser.add_argument(
+    '--filter',
+    dest='regex',
+    metavar='REGEX',
+    help='regex to filter student names (matched with re.search)',
+  )
+  parser.add_argument(
+    '--dry-run', action='store_true', help='collect and list files without submitting to MOSS'
+  )
+  args = parser.parse_args()
+
+  moss_id = os.environ.get('MOSS_USERID')
+  if not moss_id:
+    sys.exit('Error: MOSS_USERID environment variable is not set.')
+
+  students = sorted(p.name for p in args.students_dir.iterdir() if p.is_dir())
+  if args.regex:
+    pattern = re.compile(args.regex)
+    students = [s for s in students if pattern.search(s)]
+
+  if not students:
+    sys.exit('No students matched.')
+
+  exclude = set(args.exclude)
+  m = mosspy.Moss(int(moss_id), 'java')
+  m.setDirectoryMode(1)
+
+  with Progress(
+    SpinnerColumn(),
+    TextColumn('[progress.description]{task.description}'),
+    BarColumn(),
+    MofNCompleteColumn(),
+    transient=True,
+  ) as progress:
+    task = progress.add_task('Collecting files', total=len(students))
+    total_files = 0
+    for student in students:
+      java_dir = args.students_dir / student / 'source' / 'src' / 'main' / 'java'
+      cnt = 0
+      for source_path in java_dir.glob('**/*.java'):
+        if not source_path.read_bytes():
+          continue
+        parts = source_path.relative_to(java_dir).parts
+        if parts[0] in exclude:
+          continue
+        m.addFile(str(source_path), student + '/' + '-'.join(parts))
+        cnt += 1
+      total_files += cnt
+      progress.update(task, advance=1, description=f'Collecting files ({student}: {cnt})')
+
+  print(f'Collected {total_files} files from {len(students)} students.')
+
+  if args.dry_run:
+    return
+
+  with Progress(
+    SpinnerColumn(),
+    TextColumn('[progress.description]{task.description}'),
+    BarColumn(),
+    MofNCompleteColumn(),
+  ) as progress:
+    task = progress.add_task('Uploading to MOSS', total=total_files)
+
+    def on_send(file_path, display_name):
+      progress.update(task, advance=1)
+
+    url = m.send(on_send)
+
+  print(f'\nResults: {url}')
+
+
+if __name__ == '__main__':
+  main()

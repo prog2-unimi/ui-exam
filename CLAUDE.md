@@ -113,6 +113,16 @@ Generates a giustifica HTML file from the command line via `curl`:
 
 Sources `.env` for `EXAMUI_PORT` (default `8765`). Accepts a partial email address — the server resolves it to a unique match; prints matching candidates and exits if ambiguous. Saves output as `giustifica-<fragment>.html` in the current directory. Uses `--connect-timeout 5` so a missing server fails immediately with a clear message.
 
+### `bin/moss` — submit sources to MOSS for plagiarism detection
+
+Standalone Python script (not part of the `examui` package), shebang `#!/usr/bin/env -S uv run python3` so it always runs with the project's dependencies regardless of CWD or shell activation, matching the `uv run`-based pattern of the other `bin/` scripts:
+
+```bash
+./bin/moss <students_dir> [--exclude DIR ...] [--filter REGEX] [--dry-run]
+```
+
+Requires `MOSS_USERID` env var — a personal MOSS account secret, unrelated to the `exam-pipeline` CLI, set in `.env` alongside the other secrets. Unlike the bash `bin/` scripts, `bin/moss` does not `source .env` itself, so the variable must already be in the shell's environment (e.g. via `direnv allow`, which loads `.env` automatically). Walks `<students_dir>/<student>/source/src/main/java`, skips empty files and top-level package dirs in `--exclude` (default `clients util`), uploads via `mosspy` with a `rich` progress bar, and prints the MOSS results URL. `--filter` restricts which students are processed (regex matched against the student dir name via `re.search`). `--dry-run` collects and counts files without submitting.
+
 ---
 
 ## Data sources and what they mean

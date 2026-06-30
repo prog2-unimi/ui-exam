@@ -1,0 +1,13 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026  Massimo Santini
+set -e
+
+cd "$(dirname "$0")/.."
+
+find . -path ./.venv -prune -o -name '__pycache__' -type d -print0 | xargs -0 rm -rf
+find . -path ./.venv -prune -o -name '*.pyc' -type f -print0 | xargs -0 rm -f
+find . -path ./.venv -prune -o -name '.pytest_cache' -type d -print0 | xargs -0 rm -rf
+find . -path ./.venv -prune -o -name '.ruff_cache' -type d -print0 | xargs -0 rm -rf
+
+echo "Cleaned."

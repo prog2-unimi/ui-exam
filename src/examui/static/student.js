@@ -51,6 +51,7 @@ function startTimer() {
   const slotMin = parseInt(document.getElementById('slot-input').value) || CFG.slotMinutes;
   sessionStorage.setItem(TIMER_KEY, JSON.stringify({
     email:   CFG.email,
+    name:    CFG.name,
     startMs: Date.now(),
     slotMs:  slotMin * 60000,
   }));

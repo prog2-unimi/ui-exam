@@ -209,6 +209,7 @@
 <script>
 const CFG = {
   email:       {{ email | tojson }},
+  name:        {{ name | tojson }},
   slotMinutes: {{ slot_minutes }},
   urls: {
     saveNote:      {{ url_for('student.save_note',      email=email) | tojson }},

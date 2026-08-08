@@ -13,9 +13,10 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PAT
 APPDIR="$(dirname "$(realpath "$0")")/.."
 PORT=8766
 
-# NETLIFY_AUTH_TOKEN is an account credential and lives in the roamed secrets, not here;
-# .env carries only what is specific to this project. Sourcing it explicitly keeps publish
-# working from cron and other non-login shells, which never read ~/.bash_profile.
+# NETLIFY_AUTH_TOKEN is an account credential, so it is expected from the environment
+# rather than from .env, which carries only what is specific to this project. Sourcing
+# ~/.bash_secrets when present also keeps publish working from cron and other non-login
+# shells, which never read ~/.bash_profile.
 [ -r "$HOME/.bash_secrets" ] && source "$HOME/.bash_secrets"
 
 if [ ! -f "$APPDIR/.env" ]; then echo "ERROR: .env not found"; exit 1; fi

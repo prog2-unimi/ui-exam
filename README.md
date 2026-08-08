@@ -64,8 +64,10 @@ export NETLIFY_SITE_ID=<site-id>
 ```
 
 `NETLIFY_AUTH_TOKEN` deliberately does *not* go here: it is an account credential rather
-than a project one, so it lives in `~/.bash_secrets`. `bin/publish` sources that file
-itself, so it keeps working from cron and other non-login shells. Only `NETLIFY_SITE_ID`,
+than a project one, so it belongs in your environment — a shell profile, a secrets file
+read at login, or the variable store of whatever runs the deployment — rather than in a
+file inside the repository. `bin/publish` also sources `~/.bash_secrets` when that file
+exists, so it keeps working from cron and other non-login shells. Only `NETLIFY_SITE_ID`,
 which identifies this particular site, belongs in `.env`.
 
 `bin/` scripts source `.env` directly. If you use direnv, `.envrc` loads it automatically (`dotenv .env`) and also adds `bin/` to your `PATH` (`PATH_add bin`).
@@ -116,7 +118,7 @@ browser, and tears everything down on Ctrl-C.
 
 Fetches the generated public schedule page from the running app and deploys it
 to the Netlify site identified by `NETLIFY_SITE_ID` (from `.env`), authenticating with
-`NETLIFY_AUTH_TOKEN` (from `~/.bash_secrets`). Requires the Netlify CLI.
+`NETLIFY_AUTH_TOKEN`, which must be exported in the environment. Requires the Netlify CLI.
 
 ```bash
 ./bin/publish

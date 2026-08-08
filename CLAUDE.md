@@ -101,7 +101,7 @@ Single-worker gunicorn is a hard requirement (in-process `@cache`).
 
 ### `bin/publish` — deploy the public schedule page
 
-Starts a throwaway gunicorn instance on port `8766` (separate from the tunnel server on `8765`, single-worker as required) so the published page reflects the latest data regardless of whether the tunnel server is running or stale. Polls `/api/schedule/public` until the warmed-up app responds (up to 60s; `create_app()` warmup runs synchronously before gunicorn binds, so a response means the app is fully ready), fetches the page, kills the temporary server, writes a `netlify.toml` (to suppress any build command), and deploys to the Netlify site via `netlify deploy --prod`. Reads `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` from `.env`. Requires `netlify-cli` installed on the server (`npm install -g netlify-cli`). The target site is `prog2unimi-esame.netlify.app`.
+Starts a throwaway gunicorn instance on port `8766` (separate from the tunnel server on `8765`, single-worker as required) so the published page reflects the latest data regardless of whether the tunnel server is running or stale. Polls `/api/schedule/public` until the warmed-up app responds (up to 60s; `create_app()` warmup runs synchronously before gunicorn binds, so a response means the app is fully ready), fetches the page, kills the temporary server, writes a `netlify.toml` (to suppress any build command), and deploys to the Netlify site via `netlify deploy --prod`. Reads `NETLIFY_SITE_ID` from `.env`, and `NETLIFY_AUTH_TOKEN` from `~/.bash_secrets`, which it sources itself so it also works from non-login shells. Requires `netlify-cli` on the server. The target site is `prog2unimi-esame.netlify.app`.
 
 ### `bin/giustifica` — CLI certificate generator
 

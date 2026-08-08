@@ -60,9 +60,13 @@ Then create a `.env` file in the project root with at least:
 ```shell
 export EXAMUI_CONFIG="$(pwd)/config.toml"
 # Required for bin/publish (Netlify deployment):
-export NETLIFY_AUTH_TOKEN=<personal-access-token>
 export NETLIFY_SITE_ID=<site-id>
 ```
+
+`NETLIFY_AUTH_TOKEN` deliberately does *not* go here: it is an account credential rather
+than a project one, so it lives in `~/.bash_secrets`. `bin/publish` sources that file
+itself, so it keeps working from cron and other non-login shells. Only `NETLIFY_SITE_ID`,
+which identifies this particular site, belongs in `.env`.
 
 `bin/` scripts source `.env` directly. If you use direnv, `.envrc` loads it automatically (`dotenv .env`) and also adds `bin/` to your `PATH` (`PATH_add bin`).
 
@@ -111,8 +115,8 @@ browser, and tears everything down on Ctrl-C.
 ### `bin/publish` — deploy the public schedule page
 
 Fetches the generated public schedule page from the running app and deploys it
-to the Netlify site configured via `NETLIFY_SITE_ID` and `NETLIFY_AUTH_TOKEN`
-in `.envrc`. Requires the Netlify CLI (`npm install -g netlify-cli`).
+to the Netlify site identified by `NETLIFY_SITE_ID` (from `.env`), authenticating with
+`NETLIFY_AUTH_TOKEN` (from `~/.bash_secrets`). Requires the Netlify CLI.
 
 ```bash
 ./bin/publish

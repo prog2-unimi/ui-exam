@@ -331,6 +331,8 @@ uv run pytest tests/
 
 `pytest` is in `[dependency-groups] dev` in `pyproject.toml` (no extra install needed with `uv`).
 
+`.github/workflows/tests.yml` runs this same command (`uv run pytest tests/`, via `astral-sh/setup-uv`) on every push to `master` and on every pull request. The suite is pure Python — no gradle/graphviz/JDK — so no extra setup steps are needed in CI.
+
 #### Known quirks (discovered while writing tests)
 
 - **Primitive types not in `uses`**: `_collect_type_refs` only visits `type_identifier` nodes. Primitive types (`int`, `double`, etc.) are represented by `integral_type`/`floating_point_type` nodes in tree-sitter-java and are therefore invisible to `class_uses` — they never appear in any `uses` set. Use reference types in tests that need to assert on parameter/return/local uses.

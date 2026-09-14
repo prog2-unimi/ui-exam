@@ -294,15 +294,15 @@ async function onDiffDateChange() {
 
 function renderDiffRow(row) {
   if (row.kind === 'skip') {
-    return `<div class="diff2-skip">⋯ ${row.count} unchanged line${row.count === 1 ? '' : 's'} ⋯</div>`;
+    return `<tr class="diff2-skip-row"><td colspan="2" class="diff2-skip">⋯ ${row.count} unchanged line${row.count === 1 ? '' : 's'} ⋯</td></tr>`;
   }
   const side = (no, html) => no
     ? `<span class="src-ln">${no}</span><span class="src-code">${html}</span>`
     : `<span class="src-ln"></span><span class="src-code">&nbsp;</span>`;
-  return `<div class="diff2-row diff2-kind-${row.kind}">
-    <div class="diff2-side diff2-old src-line">${side(row.oldNo, row.oldHtml)}</div>
-    <div class="diff2-side diff2-new src-line">${side(row.newNo, row.newHtml)}</div>
-  </div>`;
+  return `<tr class="diff2-row diff2-kind-${row.kind}">
+    <td class="diff2-side diff2-old">${side(row.oldNo, row.oldHtml)}</td>
+    <td class="diff2-side diff2-new">${side(row.newNo, row.newHtml)}</td>
+  </tr>`;
 }
 
 async function loadDiffFile(relpath, clickedEl) {
@@ -315,8 +315,12 @@ async function loadDiffFile(relpath, clickedEl) {
 
   const resp = await fetch(`/api/${CFG.email}/diff/${_diffDate}/file?path=${encodeURIComponent(relpath)}`);
   const data = resp.ok ? await resp.json() : null;
+  // A real <table> (not flex divs) so every row's columns share one width per
+  // side (consistent alignment) and the whole thing scrolls horizontally as a
+  // single unit via #source-code's own scrollbar, instead of one scrollbar
+  // per overflowing line.
   document.getElementById('source-code').innerHTML = data && data.rows
-    ? `<div class="src"><div class="src-pre diff2-pre">${data.rows.map(renderDiffRow).join('')}</div></div>`
+    ? `<div class="src src-pre"><table class="diff2-table">${data.rows.map(renderDiffRow).join('')}</table></div>`
     : '<div class="p-3 text-muted">No diff available.</div>';
   applyFontSize();
 }

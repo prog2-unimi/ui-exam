@@ -14,3 +14,12 @@ jobs:
         with:
           enable-cache: true
       - run: uv run pytest tests/ --cov=src/examui --cov-report=term-missing
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo '## Coverage'
+            echo '```'
+            uv run coverage report -m
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

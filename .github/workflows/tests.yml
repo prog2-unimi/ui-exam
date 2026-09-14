@@ -21,6 +21,7 @@ jobs:
         uses: MishaKav/pytest-coverage-comment@v1
         with:
           pytest-coverage-path: ./pytest-coverage.txt
+          default-branch: master
           hide-comment: true
       - name: Write job summary
         if: always()

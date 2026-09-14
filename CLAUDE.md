@@ -331,7 +331,7 @@ uv run pytest tests/
 
 `pytest` is in `[dependency-groups] dev` in `pyproject.toml` (no extra install needed with `uv`).
 
-`.github/workflows/tests.yml` runs this same command (`uv run pytest tests/`, via `astral-sh/setup-uv`) on every push to `master` and on every pull request. The suite is pure Python — no gradle/graphviz/JDK — so no extra setup steps are needed in CI.
+`.github/workflows/tests.yml` runs this same command, plus `--cov=src/examui --cov-report=term-missing` (via `pytest-cov`, also in `[dependency-groups] dev`), on every push to `master` and on every pull request, using `astral-sh/setup-uv`. The suite is pure Python — no gradle/graphviz/JDK — so no extra setup steps are needed in CI. Coverage is printed for reference only — there is no enforced threshold, since only `lang/` and `data/` have tests; `views/`, `models/store.py`, `source.py`, and `pipeline/` are untested and always show 0%.
 
 #### Known quirks (discovered while writing tests)
 

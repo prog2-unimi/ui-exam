@@ -29,7 +29,11 @@ dependencies = [
 exam-pipeline = "examui.pipeline:cli"
 
 [dependency-groups]
-dev = ["ruff", "pytest"]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-cov>=7.1.0",
+]
 
 [tool.ruff]
 line-length     = 100

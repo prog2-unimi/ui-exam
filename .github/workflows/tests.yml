@@ -13,13 +13,15 @@ jobs:
       - uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
-      - run: uv run pytest tests/ --cov=src/examui --cov-report=term-missing
-      - name: Coverage summary
+      - name: Run tests
+        run: uv run pytest tests/ --cov=src/examui --cov-report=term-missing | tee pytest-coverage.txt
+      - name: Format coverage report
         if: always()
-        run: |
-          {
-            echo '## Coverage'
-            echo '```'
-            uv run coverage report -m
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+        id: coverage
+        uses: MishaKav/pytest-coverage-comment@v1
+        with:
+          pytest-coverage-path: ./pytest-coverage.txt
+          hide-comment: true
+      - name: Write job summary
+        if: always()
+        run: echo '${{ steps.coverage.outputs.coverageHtml }}' >> "$GITHUB_STEP_SUMMARY"

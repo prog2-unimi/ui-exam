@@ -49,6 +49,7 @@ def _get(section: str, key: str, default_value=None):
 HISTORY_DIR      = Path(_get('paths', 'history_dir'))
 EVALS_DIR        = Path(_get('paths', 'evals_dir'))
 WORK_DIR         = Path(_get('paths', 'work_dir'))
+BACKUP_DIR       = Path(_get('paths', 'backup_dir'))
 
 # derived directories
 

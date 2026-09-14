@@ -1,0 +1,28 @@
+[paths]
+history_dir = "/nonexistent/history"
+evals_dir   = "/nonexistent/evals"
+work_dir    = "/nonexistent/work"
+backup_dir  = "/nonexistent/backup"
+
+[exam]
+slot_minutes  = 30
+course_name   = "Test Course"
+course_degree = "Test Degree"
+teacher_email = "teacher@example.com"
+teacher_name  = "Teacher"
+subject_prefix = "[Test] "
+email_domain  = "example.com"
+
+[vscode]
+tunnel = "test"
+
+[booking]
+cal_url  = "https://cal.com/test/test"
+endpoint = "https://api.cal.com/v2/bookings"
+version  = "2024-08-13"
+event    = 1
+
+[uploads]
+url      = "https://example.com/admin"
+username = "teacher@example.com"
+session  = 1

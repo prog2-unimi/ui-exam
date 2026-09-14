@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, abort, render_template, request, jsonify, send_from_directory
 from examui import config
+from examui.models import diff as diffmodel
 from examui.models import source
 from examui.models.events import ExamEvent
 from examui.models.store import all_students, UnderEvaluationEvent
@@ -36,6 +37,7 @@ def student(email):
     current=live,
     slot_minutes=config.SLOT_MINUTES,
     vscode_url=vscode_url,
+    diff_dates=diffmodel.past_sessions(email) if live else [],
   )
 
 
@@ -121,6 +123,30 @@ def source_file(email):
   data = source.file(email, relpath)
   if data is None:
     return 'Not found', 404
+  return jsonify(data)
+
+
+@bp.get('/api/<email>/diff/<old_date>/tree')
+def diff_status(email, old_date):
+  if not _live(email):
+    return jsonify(error='not enrolled'), 404
+  try:
+    return jsonify(diffmodel.status(email, old_date))
+  except (FileNotFoundError, ValueError) as e:
+    return jsonify(error=str(e)), 404
+
+
+@bp.get('/api/<email>/diff/<old_date>/file')
+def diff_file(email, old_date):
+  if not _live(email):
+    return jsonify(error='not enrolled'), 404
+  relpath = request.args.get('path', '')
+  try:
+    data = diffmodel.file_rows(email, old_date, relpath)
+  except (FileNotFoundError, ValueError) as e:
+    return jsonify(error=str(e)), 404
+  if data is None:
+    return jsonify(error='not found'), 404
   return jsonify(data)
 
 

@@ -11,3 +11,21 @@
 .src-jd           { color: #888; cursor: pointer; font-size: .85em; }
 .src-jd:hover     { color: var(--bs-primary); }
 #deps-container svg { display: block; }
+
+.diff-added    { color: var(--bs-success); }
+.diff-modified { color: #b8860b; }
+.diff-removed  { color: var(--bs-danger); text-decoration: line-through; }
+
+/* Two-column diff view: reuses .src/.src-pre/.src-line/.src-ln/.src-code so
+   syntax highlighting and font-size controls match the normal file view. */
+.diff2-row               { display: flex; }
+.diff2-side               { flex: 1 1 50%; min-width: 0; overflow-x: auto; }
+.diff2-old                { border-right: 1px solid var(--bs-border-color); }
+.diff2-kind-delete  .diff2-old  { background: #f8d7d7; }
+.diff2-kind-insert  .diff2-new  { background: #d7f5d7; }
+.diff2-kind-replace .diff2-old,
+.diff2-kind-replace .diff2-new  { background: #fff3b0; }
+.diff2-skip {
+  text-align: center; font-size: .75rem; color: var(--bs-secondary-color);
+  background: var(--bs-tertiary-bg); padding: .15rem 0;
+}

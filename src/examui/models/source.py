@@ -100,6 +100,11 @@ def pygments_css() -> str:
   return _FORMATTER.get_style_defs('.src')
 
 
+def highlight_lines(text: str) -> list[str]:
+  """Syntax-highlighted per-line HTML fragments (span tags carried across line breaks)."""
+  return _split_html_lines(highlight(text, _LEXER, _FORMATTER))
+
+
 def _split_html_lines(html: str) -> list[str]:
   pre = re.search(r'<pre[^>]*>(.*?)</pre>', html, re.DOTALL)
   if not pre:
@@ -177,7 +182,6 @@ def file(email: str, relpath: str) -> dict | None:
   if not str(path).startswith(str(root)) or not path.exists() or path.suffix != '.java':
     return None
   text = path.read_text(errors='replace')
-  html = highlight(text, _LEXER, _FORMATTER)
   syms = parsing.symbols(text)
   jd_ids = _javadoc_ids(email, relpath)
   if jd_ids:
@@ -185,7 +189,7 @@ def file(email: str, relpath: str) -> dict | None:
       if s['anchor'] and s['anchor'] not in jd_ids:
         s['anchor'] = ''
   return {
-    'lines': _split_html_lines(html),
+    'lines': highlight_lines(text),
     'symbols': syms,
   }
 

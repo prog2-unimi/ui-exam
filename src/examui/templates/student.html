@@ -135,6 +135,14 @@
             <option value="all">All</option>
             <option value="trivial">Trivial</option>
           </select>
+          {% if diff_dates %}
+          <select id="diff-date" class="form-select form-select-sm" style="font-size:.78rem;">
+            <option value="">Compare to…</option>
+            {% for d in diff_dates %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+          </select>
+          {% endif %}
         </div>
         <div id="source-tree" class="overflow-auto flex-grow-1 py-2 px-1 text-muted">Loading…</div>
       </div>

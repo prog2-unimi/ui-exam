@@ -155,6 +155,8 @@ const SYM_SEARCH_MIN_LEN = 3;
 let allSymbols  = [];
 let _activeFile = null;
 
+const DIFF_STATUS_CLASS = { added: 'diff-added', modified: 'diff-modified', removed: 'diff-removed' };
+
 function renderTree(nodes, depth=0) {
   let html = `<ul class="list-unstyled mb-0${depth ? ' ms-3' : ''}">`;
   for (const n of nodes) {
@@ -167,9 +169,10 @@ function renderTree(nodes, depth=0) {
         ${renderTree(n.children, depth + 1)}
       </li>`;
     } else {
+      const statusClass = DIFF_STATUS_CLASS[n.diffStatus] || '';
       html += `<li>
-        <div class="source-file d-flex align-items-center gap-1 px-1 rounded py-0"
-             data-path="${n.path}" role="button">
+        <div class="source-file d-flex align-items-center gap-1 px-1 rounded py-0 ${statusClass}"
+             data-path="${n.path}" data-diff-status="${n.diffStatus || ''}" role="button">
           <i class="bi bi-filetype-java text-primary" style="font-size:.75rem;"></i>
           <span>${n.name}</span>
         </div>
@@ -177,6 +180,62 @@ function renderTree(nodes, depth=0) {
     }
   }
   return html + '</ul>';
+}
+
+function mergeDiffStatus(nodes, statusByPath) {
+  const merged = nodes.map(n => {
+    if (n.type === 'file') {
+      const status = statusByPath.get(n.path);
+      return status ? { ...n, diffStatus: status } : n;
+    }
+    return { ...n, children: mergeDiffStatus(n.children, statusByPath) };
+  });
+  return merged;
+}
+
+// Matches _walk()'s sort in models/source.py: dirs before files, then by lowercase name.
+function _treeSortKey(n) {
+  return [n.type === 'file' ? 1 : 0, n.name.toLowerCase()];
+}
+
+function _insertSorted(list, node) {
+  const key = _treeSortKey(node);
+  let i = 0;
+  while (i < list.length) {
+    const other = _treeSortKey(list[i]);
+    if (other[0] > key[0] || (other[0] === key[0] && other[1] > key[1])) break;
+    i++;
+  }
+  list.splice(i, 0, node);
+}
+
+function insertRemovedFiles(nodes, removedPaths) {
+  const root = nodes.map(n => n.type === 'dir' ? { ...n, children: [...n.children] } : n);
+  for (const relpath of removedPaths) {
+    const parts = relpath.split('/');
+    const fname = parts.pop();
+    let level = root;
+    let prefix = '';
+    for (const part of parts) {
+      prefix = prefix ? `${prefix}/${part}` : part;
+      let dir = level.find(n => n.type === 'dir' && n.name === part);
+      if (!dir) {
+        dir = { type: 'dir', name: part, path: prefix, children: [], trivial: false };
+        _insertSorted(level, dir);
+      }
+      level = dir.children;
+    }
+    _insertSorted(level, { type: 'file', name: fname, path: relpath, diffStatus: 'removed', trivial: false });
+  }
+  return root;
+}
+
+function buildDiffTree(tree, status) {
+  if (!status) return tree;
+  const statusByPath = new Map();
+  for (const p of status.added)    statusByPath.set(p, 'added');
+  for (const p of status.modified) statusByPath.set(p, 'modified');
+  return insertRemovedFiles(mergeDiffStatus(tree, statusByPath), status.removed);
 }
 
 function filterNodes(nodes, mode) {
@@ -190,16 +249,26 @@ function filterNodes(nodes, mode) {
   });
 }
 
-let _fullTree = [];
+let _fullTree   = [];
+let _diffDate   = '';
+let _diffStatus = null;
 
 function applyTree() {
-  const el   = document.getElementById('source-tree');
-  const mode = document.getElementById('tree-filter').value;
-  const tree = filterNodes(_fullTree, mode);
+  const el     = document.getElementById('source-tree');
+  const mode   = document.getElementById('tree-filter').value;
+  const merged = buildDiffTree(_fullTree, _diffStatus);
+  const tree   = filterNodes(merged, mode);
   if (!tree.length) { el.textContent = 'No files.'; return; }
   el.innerHTML = renderTree(tree);
   el.querySelectorAll('.source-file').forEach(div => {
-    div.addEventListener('click', () => loadSourceFile(div.dataset.path, div));
+    const status = div.dataset.diffStatus;
+    if (status === 'removed') {
+      div.addEventListener('click', () => showRemovedFile(div.dataset.path));
+    } else if (status === 'modified' && _diffDate) {
+      div.addEventListener('click', () => loadDiffFile(div.dataset.path, div));
+    } else {
+      div.addEventListener('click', () => loadSourceFile(div.dataset.path, div));
+    }
   });
   if (_activeFile) {
     const active = el.querySelector(`.source-file[data-path="${_activeFile}"]`);
@@ -207,11 +276,68 @@ function applyTree() {
   }
 }
 
+async function onDiffDateChange() {
+  const sel = document.getElementById('diff-date');
+  _diffDate = sel.value;
+  if (!_diffDate) { _diffStatus = null; applyTree(); return; }
+
+  sel.disabled = true;
+  document.getElementById('source-tree').textContent = 'Comparing…';
+  try {
+    const resp = await fetch(`/api/${CFG.email}/diff/${_diffDate}/tree`);
+    _diffStatus = resp.ok ? await resp.json() : null;
+  } finally {
+    sel.disabled = false;
+  }
+  applyTree();
+}
+
+function renderDiffRow(row) {
+  if (row.kind === 'skip') {
+    return `<div class="diff2-skip">⋯ ${row.count} unchanged line${row.count === 1 ? '' : 's'} ⋯</div>`;
+  }
+  const side = (no, html) => no
+    ? `<span class="src-ln">${no}</span><span class="src-code">${html}</span>`
+    : `<span class="src-ln"></span><span class="src-code">&nbsp;</span>`;
+  return `<div class="diff2-row diff2-kind-${row.kind}">
+    <div class="diff2-side diff2-old src-line">${side(row.oldNo, row.oldHtml)}</div>
+    <div class="diff2-side diff2-new src-line">${side(row.newNo, row.newHtml)}</div>
+  </div>`;
+}
+
+async function loadDiffFile(relpath, clickedEl) {
+  _activeFile = relpath;
+  document.querySelectorAll('.source-file').forEach(d => d.classList.remove('active'));
+  if (clickedEl) clickedEl.classList.add('active');
+
+  document.getElementById('src-filename').textContent = `${relpath}  (vs. ${_diffDate})`;
+  document.getElementById('source-code').innerHTML = '<div class="p-3 text-muted">Loading…</div>';
+
+  const resp = await fetch(`/api/${CFG.email}/diff/${_diffDate}/file?path=${encodeURIComponent(relpath)}`);
+  const data = resp.ok ? await resp.json() : null;
+  document.getElementById('source-code').innerHTML = data && data.rows
+    ? `<div class="src"><div class="src-pre diff2-pre">${data.rows.map(renderDiffRow).join('')}</div></div>`
+    : '<div class="p-3 text-muted">No diff available.</div>';
+  applyFontSize();
+}
+
+function showRemovedFile(relpath) {
+  _activeFile = relpath;
+  document.querySelectorAll('.source-file').forEach(d => d.classList.remove('active'));
+  const el = document.querySelector(`#source-tree .source-file[data-path="${relpath}"]`);
+  if (el) el.classList.add('active');
+  document.getElementById('src-filename').textContent = relpath;
+  document.getElementById('source-code').innerHTML =
+    `<div class="p-3 text-muted">File removed since ${_diffDate}. Nothing to show.</div>`;
+}
+
 async function loadSourceTree() {
   const resp = await fetch(CFG.urls.sourceTree);
   _fullTree  = await resp.json();
   applyTree();
   document.getElementById('tree-filter').addEventListener('change', applyTree);
+  const diffDateSel = document.getElementById('diff-date');
+  if (diffDateSel) diffDateSel.addEventListener('change', onDiffDateChange);
 }
 
 async function loadAllSymbols() {

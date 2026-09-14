@@ -11,7 +11,7 @@ import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from zipfile import BadZipFile, ZipFile
+from zipfile import BadZipFile
 
 from rich.progress import (
   BarColumn,
@@ -21,6 +21,8 @@ from rich.progress import (
   TextColumn,
   TimeElapsedColumn,
 )
+
+from examui.data.extraction import extract_source
 
 _log = logging.getLogger(__name__)
 
@@ -39,55 +41,6 @@ _JAVADOC_CYCLIC_RE = re.compile(
 
 def _hash_file(path: Path) -> str:
   return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _extract_source(
-  email: str, consegna: Path, template_zip: Path, student_base: Path
-) -> Path:
-  source_dir = student_base / email / 'source'
-  if source_dir.exists():
-    shutil.rmtree(source_dir)
-  source_dir.mkdir(parents=True)
-
-  with ZipFile(template_zip) as zf:
-    zf.extractall(source_dir)
-
-  subdirs = list(source_dir.iterdir())
-  if len(subdirs) == 1 and subdirs[0].is_dir():
-    top = subdirs[0]
-    for item in top.iterdir():
-      item.rename(source_dir / item.name)
-    top.rmdir()
-
-  java_dir = source_dir / 'src' / 'main' / 'java'
-  if java_dir.exists():
-    shutil.rmtree(java_dir)
-  java_dir.mkdir(parents=True)
-
-  with ZipFile(consegna) as zf:
-    zf.extractall(java_dir)
-
-  for d in source_dir.rglob('*'):
-    if d.is_dir():
-      d.chmod(0o700)
-  for f in source_dir.rglob('*'):
-    if f.is_file():
-      f.chmod(0o600)
-  gradlew = source_dir / 'gradlew'
-  if gradlew.exists():
-    gradlew.chmod(0o700)
-
-  header = source_dir / 'src' / 'licenseHeaderFile.txt'
-  header.write_text(f'/* {email} */\n\n')
-
-  subprocess.run(
-    ['./gradlew', '--no-build-cache', 'spotlessApply'],
-    cwd=source_dir,
-    capture_output=True,
-    timeout=120,
-  )
-
-  return source_dir
 
 
 def _run_tests(source_dir: Path, computed_dir: Path) -> str:
@@ -213,7 +166,7 @@ def _compute_one(
   task = progress.add_task(email, total=4, status='extracting') if progress else None
   try:
     try:
-      source_dir = _extract_source(email, consegna, template_zip, student_base)
+      source_dir = extract_source(email, consegna, template_zip, student_base / email / 'source')
     except (BadZipFile, OSError) as e:
       _log.error('Source extraction failed for %s: %s', email, e)
       return email, None

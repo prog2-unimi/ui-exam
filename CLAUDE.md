@@ -13,6 +13,7 @@ All stable configuration lives in a TOML file pointed to by the `EXAMUI_CONFIG` 
 history_dir  = "/path/to/exams/history"
 evals_dir    = "/path/to/exams/evals"
 work_dir     = "/path/to/work/dir"               # ephemeral directory for pipeline artifacts
+backup_dir   = "/path/to/exams/backup"           # archived raw submissions from past sessions (for the diff tool)
 
 [exam]
 slot_minutes     = 30
@@ -45,6 +46,8 @@ session  = 1234                              # upload session ID (changes per se
 Every key shown above is mandatory except `trivial_packages` and `titoli`, which fall back to the defaults shown if omitted. `config.py`'s `_get(section, key, default_value)` helper enforces this: missing keys/sections raise `ConfigError` with a message naming the section, key, and config file path (instead of a bare `KeyError`), so misconfiguration fails loudly at import time rather than surfacing later as an `AttributeError` deep in a view. This applies even to fields used by optional UI features (e.g. `vscode.tunnel`, `booking.cal_url`) — every `examui` deployment must fill in the whole file, including pipeline-only sections (`uploads`, the pipeline-specific `booking` keys), regardless of whether the pipeline CLI is actually used.
 
 Two paths are derived by convention rather than configured: `STUDENT_BASE` is always `work_dir/student`, and `PROJECTS_DIR` is always `history_dir/projects`. Neither has a TOML key — `config.py` builds them from `paths.work_dir` and `paths.history_dir` respectively.
+
+`backup_dir` is unrelated to `history_dir`/`work_dir`/`PROJECTS_DIR`: it points at manually-maintained archives of *raw* past-session uploads (one `<YYMMDD>.zip` per exam date, each containing every student's numbered `<email>@domain/NNN-consegna.zip` resubmissions, as originally received — not the single latest-per-student copy the pipeline keeps in `work_dir/uploaded`). It is read by the Flask app's diff feature (see `views/student.py`, `models/diff.py`) — the pipeline CLI never touches it.
 
 Two env vars are intentionally kept outside the TOML because they are ephemeral simulation overrides:
 
@@ -362,6 +365,7 @@ Filesystem I/O layer for student source code and Javadoc. Orchestrates `lang.par
 - `javadoc_root(email)` — path to the pre-built Javadoc tree.
 - `javadoc_path_for_source(relpath)` — maps a `.java` source relpath to the corresponding `.html` Javadoc path (`None` if not applicable).
 - `pygments_css()` — returns the Pygments CSS string for the `src` class.
+- `highlight_lines(text)` — syntax-highlighted per-line HTML fragments for arbitrary Java source text (not tied to a student/`STUDENT_BASE`). `file()` uses it for the normal single-file view; `models/diff.py` reuses it for the diff view's two side-by-side columns, so both look identical stylistically.
 - `warmup(email)` — eagerly populates `tree`, `all_symbols`, and `deps` caches. Called at startup. (`file` is not pre-warmed — loaded on demand.)
 
 "Trivial" files are excluded from the symbol index and dependency graph. Triviality is determined by:
@@ -399,12 +403,14 @@ Serves the exam instruction documents extracted from `PROJECTS_DIR/<exam_date>.z
 
 ### `views/student.py` — per-student routes
 
-- `GET /student/<email>` — renders `student.html`. Passes `email`, `name`, `matricola`, `events` (only `ExamEvent` instances — `UnderEvaluationEvent` is excluded), `current` (`UnderEvaluationEvent | None`), `slot_minutes`, `vscode_url` (`https://vscode.dev/tunnel/<tunnel><STUDENT_BASE>/<email>/source` when `[vscode] tunnel` is set and student is in current exam, else `None`).
+- `GET /student/<email>` — renders `student.html`. Passes `email`, `name`, `matricola`, `events` (only `ExamEvent` instances — `UnderEvaluationEvent` is excluded), `current` (`UnderEvaluationEvent | None`), `slot_minutes`, `vscode_url` (`https://vscode.dev/tunnel/<tunnel><STUDENT_BASE>/<email>/source` when `[vscode] tunnel` is set and student is in current exam, else `None`), `diff_dates` (archived past-session dates with a submission from this student, most recent first, via `models.diff.past_sessions()` — empty list for non-current students, so the comparison picker only renders when relevant).
 - `POST /api/<email>/note` — saves `note` (long-form, to `.md` file). Form field: `note`.
 - `POST /api/<email>/mark` — saves both `mark` and `annotation` to marks.tsv via `live.mark.save()`. Form fields: `mark`, `annotation`.
 - `GET /student/<email>/giustifica` — renders a standalone `giustifica.html` certificate page ready for browser print-to-PDF. Query params: `titolo` (required), `inizio` and `fine` (`HH:MM`, optional — default to slot start and slot start + `SLOT_MINUTES`). The `<email>` segment accepts a partial match: if it uniquely identifies one current-exam student the request proceeds; if ambiguous, returns `{"error": "ambiguous", "matches": [...]}` with HTTP 400.
 - `GET /api/<email>/computed/files` — returns sorted JSON list of filenames in `STUDENT_BASE/<email>/computed/`; empty list if directory absent. Only available for current-exam students.
 - `GET /api/<email>/computed/file?name=<filename>` — returns raw text content of one computed file; path-traversal guarded. Only available for current-exam students.
+- `GET /api/<email>/diff/<old_date>/tree` — classifies the student's current source against an archived past session (`models.diff.status()`): `{added, removed, modified, raw}` (relpath lists; `raw` is true when no project template is archived for `old_date`, so the comparison fell back to unformatted source). Materializes and caches the past submission on disk on first call (see below); 404 with `{"error": ...}` if the session/student/date is invalid.
+- `GET /api/<email>/diff/<old_date>/file?path=<relpath>` — returns `{"rows": [...]}` (`models.diff.file_rows()`): row-aligned, syntax-highlighted side-by-side diff data for one file — see `data.diff.align_lines()` and the `student.js` entry below. 404 if `path` isn't a real file present on both sides (also guards path traversal).
 - Source/Javadoc routes delegate to `source.*` functions.
 
 ---
@@ -470,6 +476,8 @@ Tab visibility: History tab always visible (shows only `ExamEvent` instances —
 
 Source tab toolbar contains an "Open in VSCode" button (`bi-code-square`) when `vscode_url` is set and `current` is truthy — opens `https://vscode.dev/tunnel/<name><source-root>` in a new tab (workspace only; no file-open via URL).
 
+Tree panel has a `#diff-date` select (below `#tree-filter`, only rendered when `diff_dates` is non-empty) offering "Compare to…" against each archived past session where this student has a submission. See `student.js` below for the tree-merge/diff-view behavior this drives.
+
 Details tab: `<select id="details-select">` dropdown populated lazily on first tab open from `/api/<email>/computed/files`; selecting a filename fetches and displays its content in `<pre id="details-content">`.
 
 Notes tab layout (top to bottom):
@@ -534,6 +542,7 @@ DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. 
 - **Source tree, symbol search, file viewer, deps graph, Javadoc**: fetch from `/api/<email>/source/*` and `/api/<email>/javadoc/`. Source tree loaded lazily on first Source tab open. Panzoom (CDN) used for the deps SVG; double-click resets zoom.
 - **Font size**: `localStorage['oral-src-font-size']` key; select `#src-fontsize`.
 - **Details tab**: file list fetched lazily on first `shown.bs.tab` from `/api/<email>/computed/files`; content fetched on `#details-select` change from `/api/<email>/computed/file?name=…`.
+- **Diff view**: `#diff-date` change → `onDiffDateChange()` fetches `/api/<email>/diff/<date>/tree`, stores the `{added, removed, modified}` result in `_diffStatus`, and re-renders the tree. `buildDiffTree(tree, status)` (via `mergeDiffStatus` + `insertRemovedFiles`) merges that status into the normal `_fullTree` before the existing `filterNodes`/`renderTree` pipeline runs, so diff coloring still respects the Relevant/All/Trivial filter. `insertRemovedFiles` synthesizes tree nodes for paths that only exist in the archived session (not in the current tree) and inserts them respecting the same dirs-before-files/alphabetical order as `_walk()` in `models/source.py` (`_treeSortKey`/`_insertSorted`), so they don't just get appended at the end. Rendered file nodes get a `diff-added`/`diff-modified`/`diff-removed` class and a `data-diff-status` attribute; click wiring in `applyTree()` branches on that attribute: added files load normally (`loadSourceFile`), modified files call `loadDiffFile()`, removed files call `showRemovedFile()` (a static "removed" message, no fetch — their content is never shown, per design). `loadDiffFile()` fetches `/api/<email>/diff/<date>/file?path=…` (row data, not pre-rendered HTML — deliberately not using a generic diff-library table, which looked like a different tool bolted onto the page) and `renderDiffRow()` builds each row reusing the exact same `.src`/`.src-pre`/`.src-line`/`.src-ln`/`.src-code` structure and CSS as the normal single-file view, just two columns wide, so syntax highlighting (real Pygments spans, from `source.highlight_lines()`) and the `#src-fontsize` control both carry over unchanged. `skip` rows render as a centered "⋯ N unchanged lines ⋯" separator.
 
 ---
 
@@ -542,6 +551,7 @@ DataTables for schedule. Uses `renderMark(row.summary_mark, row.current_mark)`. 
 - `@cache` used consistently throughout — never `@lru_cache` with explicit size.
 - `all_students()`, `exam_date()`, `load_project_htmls()`: cached for process lifetime.
 - `tree`, `all_symbols`, `file`, `deps` in `models/source.py`: cached per email (or email+relpath).
+- `status`, `file_rows` in `models/diff.py`: cached per (email, old_date) / (email, old_date, relpath) — safe since archived sessions are immutable and `STUDENT_BASE` doesn't change without a process restart anyway (same caveat as `source.py`'s caches). The underlying materialized tree is additionally cached *on disk* (`WORK_DIR/diffcache/`, not just in-process) since it's the expensive part (a gradle build), and needs to survive across the several per-file requests one "Compare to…" selection triggers.
 - Live I/O (`provisional`, `annotation`, `note` on `UnderEvaluationMark`) intentionally **not** cached.
 - Single-worker gunicorn is a hard requirement.
 
@@ -575,6 +585,8 @@ exam-pipeline status                          # show counts per table
 
 All commands require `EXAMUI_CONFIG` to be set. `fetch-uploads` requires `UPLOADS_PASSWORD`, `fetch-calendar` requires `CALCOM_KEY`. `bin/pipeline` is a thin wrapper (`exec uv run exam-pipeline "$@"`); since `.envrc` does `PATH_add bin`, direnv users can run `pipeline <command>` directly instead of `uv run exam-pipeline <command>`.
 
+The student-diff feature (comparing a current submission against an archived past session) is a Flask/web feature, not a pipeline command — see `views/student.py`, `models/diff.py`, and `data/diff.py` below.
+
 ### Data flow
 
 ```
@@ -598,8 +610,10 @@ collect ────────→ EVALS_DIR/<date>/marks.tsv (preserving mark/
 - `pipeline/__init__.py` — Click CLI group + all command definitions. Reads config, manages DB connection lifecycle.
 - `pipeline/db.py` — SQLite schema (4 tables, all `CREATE TABLE IF NOT EXISTS`), context-managed `connect()`, typed upsert/read helpers.
 - `pipeline/fetch.py` — `fetch_uploads()` (uploads API → zip → extract), `fetch_calendar()` (cal.com API → fuzzy-match → DB).
-- `pipeline/compute.py` — `compute_all()` dispatches `_compute_one()` via ThreadPoolExecutor. Each student: hash check → extract source (template zip + student zip + spotlessApply) → `gradlew test` → `gradlew javadoc` → `pygount` → upsert DB. Each student's result is committed to SQLite immediately so interrupted runs preserve finished work. Progress is shown via `rich.progress.Progress` with per-student sub-tasks showing the current step.
+- `pipeline/compute.py` — `compute_all()` dispatches `_compute_one()` via ThreadPoolExecutor. Each student: hash check → `extract_source()` (imported from `data/extraction.py` — see below) → `gradlew test` → `gradlew javadoc` → `pygount` → upsert DB. Each student's result is committed to SQLite immediately so interrupted runs preserve finished work. Progress is shown via `rich.progress.Progress` with per-student sub-tasks showing the current step.
 - `pipeline/collect.py` — `load_history()` reads XLS via shared `data.history` and populates the history table. `collect_marks()` joins all DB tables, merges with existing marks.tsv (preserving `mark`/`note` columns written by the UI), writes the result. `write_noshow()` writes `noshow.csv` (enrolled students with no submission). `noshow_emails()` returns the same list as emails.
+
+There is no `pipeline/diff.py` — the student-diff feature is Flask-only (see below); it doesn't need a pipeline command.
 
 ### Shared data module (`src/examui/data/`)
 
@@ -610,6 +624,25 @@ collect ────────→ EVALS_DIR/<date>/marks.tsv (preserving mark/
 - `enrolled_emails(history_dir, exam_date)` → frozenset of email usernames for one exam date.
 
 `models/store.py`'s `all_students()` calls these shared functions and builds `Mark`/`ExamEvent`/`Student` objects. The pipeline's `collect` calls them and produces flat DB rows. Same parsing logic, no duplication.
+
+`data/extraction.py` — `extract_source(email, consegna, template_zip, source_dir)`: overlays a student's `consegna.zip` onto a project template and runs `spotlessApply`, writing into an explicitly-passed `source_dir` (not hardwired to `STUDENT_BASE`). Used by `pipeline/compute.py` for the current exam and `data/diff.py` for archived past sessions.
+
+`extract_source()` runs `_unglue_headers()` on every extracted `.java` file before `spotlessApply`: if a student's leading license comment runs straight into `package`/`import` with no newline (`*/package foo;`), spotless's `licenseHeaderFile` step only recognizes `package`/`import` as a boundary when it starts its own line, and otherwise silently deletes the declaration while replacing the header. This is a real, pre-existing bug in the extraction path (affects `compute`'s normal per-exam processing too, whenever a student's header happens to be glued like this) — first noticed while building the student-diff feature, because that re-exposed a never-before-formatted archived submission to it. `_unglue_headers()` inserts the missing newline before formatting runs.
+
+`data/diff.py` — no gradle/Flask coupling, just plain functions operating on `Path`s passed in explicitly, used by `models/diff.py` (below) to back the Flask app's student-diff feature:
+
+- `extract_backup_consegna()` / `list_sessions_with_submission()` — parse `backup_dir/<date>.zip` (pure zip I/O).
+- `materialize_consegna()` / `source_root()` — extract-and-format (or raw-extract) a consegna into a plain java tree, via `extraction.extract_source()`.
+- `classify_files(old_root, new_root)` — compares two source trees ignoring blank-line-only differences; returns relpath lists for added/removed/modified.
+- `align_lines(old_lines, new_lines, context)` — pure `difflib.SequenceMatcher`-based line alignment with unchanged runs collapsed to `context` lines; used by `models/diff.py` to build the web UI's syntax-highlighted row data (below). Doesn't know about blank-line filtering, Pygments, or HTML — just aligns whatever line sequences it's given.
+
+### Web-side diff model (`src/examui/models/diff.py`)
+
+Where the Flask app's `/api/<email>/diff/*` routes (see `views/student.py` above) get their data. The web UI caches each archived session's materialized tree on disk at `WORK_DIR/diffcache/<email>/<old_date>/source/` (`_ensure_old_root()`) — extraction only happens (and only pays the `spotlessApply`/gradle cost) once per (student, past session) the first time it's requested; the browser then makes several follow-up per-file requests while the examiner clicks around the tree, which must stay fast. A `.raw` marker file records whether that session had to fall back to unformatted extraction (no archived template). Nothing here mutates `STUDENT_BASE` — only the new `diffcache/` subtree.
+
+- `past_sessions(email)` — used by `views/student.py`'s `student()` to populate `diff_dates` (empty list skips rendering the picker entirely).
+- `status(email, old_date)` — `@cache`; wraps `data.diff.classify_files()` against `STUDENT_BASE/<email>/source`.
+- `file_rows(email, old_date, relpath)` — `@cache`; wraps `data.diff.align_lines()`, then swaps its raw line-number output for `source.highlight_lines()`-rendered HTML — see the `student.js` entry above for how those rows get rendered as a native-looking two-column view instead of a bolted-on diff-library table.
 
 ---
 

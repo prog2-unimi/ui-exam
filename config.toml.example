@@ -1,0 +1,30 @@
+[paths]
+history_dir  = "/path/to/exams/history"
+evals_dir    = "/path/to/exams/evals"
+work_dir     = "/path/to/work/dir"               # ephemeral directory for pipeline artifacts
+backup_dir   = "/path/to/exams/backup"           # archived raw submissions from past sessions (for the diff tool)
+
+[exam]
+slot_minutes     = 30
+trivial_packages = ["client", "clients", "util", "utils"]  # optional, default shown
+course_name      = "Programmazione II"
+course_degree    = "Informatica"
+teacher_email    = "teacher@example.com"
+teacher_name     = "Name Surname"
+subject_prefix   = "[CourseCode] "
+email_domain     = "students.university.edu"
+titoli           = ["lo studente", "la studentessa", "il dottore", "la dottoressa"]  # optional, default shown
+
+[vscode]
+tunnel = "santinivm"          # enables the "Open in VSCode" button in the Source tab
+
+[booking]
+cal_url  = "https://cal.com/username/event-name"   # enables the public schedule page
+endpoint = "https://api.cal.com/v2/bookings"       # cal.com API endpoint
+version  = "2024-08-13"                            # cal.com API version
+event    = 1234567                                 # cal.com event type ID
+
+[uploads]
+url      = "https://api.upload.di.unimi.it/admin"
+username = "teacher@university.edu"
+session  = 1234                              # upload session ID (changes per semester)

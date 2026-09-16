@@ -134,22 +134,29 @@ def test_symbols_empty_source():
 # ── class_uses ────────────────────────────────────────────────────────────────
 
 
+def _rec(records, name):
+  return next(r for r in records if r['name'] == name)
+
+
 def test_class_uses_basic_returns_correct_names():
-  pkg, name, uses, sym_count, kind = class_uses(_CLASS_SRC)
-  assert pkg == 'com.example'
-  assert name == 'MyClass'
-  assert kind == 'class'
+  records = class_uses(_CLASS_SRC)
+  assert len(records) == 1
+  rec = records[0]
+  assert rec['fqn'] == 'com.example.MyClass'
+  assert rec['name'] == 'MyClass'
+  assert rec['kind'] == 'class'
+  assert rec['enclosing'] is None
 
 
 def test_class_uses_sym_count_matches_symbols():
-  _, _, _, sym_count, _ = class_uses(_CLASS_SRC)
-  assert sym_count == len(symbols(_CLASS_SRC))
+  rec = _rec(class_uses(_CLASS_SRC), 'MyClass')
+  assert rec['sym_count'] == len(symbols(_CLASS_SRC))
 
 
 def test_class_uses_return_type():
-  _, _, uses, _, _ = class_uses(_CLASS_SRC)
+  rec = _rec(class_uses(_CLASS_SRC), 'MyClass')
   # getNames() returns List → resolved to java.util.List via import
-  assert 'java.util.List' in uses['return']
+  assert 'java.util.List' in rec['uses']['return']
 
 
 def test_class_uses_constructor_parameter():
@@ -160,48 +167,41 @@ public class Wrapper {
   private List<String> items;
   public Wrapper(List<String> items) { this.items = items; }
 }'''
-  _, _, uses, _, _ = class_uses(src)
+  rec = _rec(class_uses(src), 'Wrapper')
   # constructor takes List<String> — resolved via import
-  assert 'java.util.List' in uses['parameter']
+  assert 'java.util.List' in rec['uses']['parameter']
 
 
 def test_class_uses_interface_kind():
-  pkg, name, uses, _, kind = class_uses(_INTERFACE_SRC)
-  assert kind == 'interface'
-  assert name == 'Sortable'
-  assert pkg == 'com.example'
+  rec = _rec(class_uses(_INTERFACE_SRC), 'Sortable')
+  assert rec['kind'] == 'interface'
+  assert rec['fqn'] == 'com.example.Sortable'
 
 
 def test_class_uses_interface_method_param():
-  _, _, uses, _, _ = class_uses(_INTERFACE_SRC)
-  assert 'java.lang.Object' in uses['parameter']
+  rec = _rec(class_uses(_INTERFACE_SRC), 'Sortable')
+  assert 'java.lang.Object' in rec['uses']['parameter']
 
 
 def test_class_uses_enum_kind():
-  _, name, _, _, kind = class_uses(_ENUM_SRC)
-  assert kind == 'enum'
-  assert name == 'Color'
+  rec = _rec(class_uses(_ENUM_SRC), 'Color')
+  assert rec['kind'] == 'enum'
 
 
 def test_class_uses_inherits_superclass():
-  _, _, uses, _, _ = class_uses(_INHERIT_SRC)
+  rec = _rec(class_uses(_INHERIT_SRC), 'ExtendedList')
   # extends ArrayList — resolved via import java.util.ArrayList
-  assert any('ArrayList' in fqn for fqn in uses['inherits'])
+  assert any('ArrayList' in fqn for fqn in rec['uses']['inherits'])
 
 
 def test_class_uses_inherits_interface():
-  _, _, uses, _, _ = class_uses(_INHERIT_SRC)
+  rec = _rec(class_uses(_INHERIT_SRC), 'ExtendedList')
   # implements Comparable — java.lang.Comparable
-  assert any('Comparable' in fqn for fqn in uses['inherits'])
+  assert any('Comparable' in fqn for fqn in rec['uses']['inherits'])
 
 
 def test_class_uses_empty_source():
-  pkg, name, uses, sym_count, kind = class_uses('')
-  assert pkg == ''
-  assert name == ''
-  assert kind == ''
-  assert sym_count == 0
-  assert all(len(v) == 0 for v in uses.values())
+  assert class_uses('') == []
 
 
 def test_class_uses_abstract_kind():
@@ -214,9 +214,8 @@ public abstract class Shape {
   public abstract double area();
 }
 '''
-  _, name, _, _, kind = class_uses(src)
-  assert name == 'Shape'
-  assert kind in ('abstract', 'class')
+  rec = _rec(class_uses(src), 'Shape')
+  assert rec['kind'] in ('abstract', 'class')
 
 
 def test_class_uses_record_kind():
@@ -225,10 +224,9 @@ package com.example;
 
 public record Point(int x, int y) {}
 '''
-  pkg, name, uses, _, kind = class_uses(src)
-  assert kind == 'record'
-  assert name == 'Point'
-  assert pkg == 'com.example'
+  rec = _rec(class_uses(src), 'Point')
+  assert rec['kind'] == 'record'
+  assert rec['fqn'] == 'com.example.Point'
 
 
 def test_class_uses_local_variable():
@@ -243,8 +241,8 @@ public class Foo {
   }
 }
 '''
-  _, _, uses, _, _ = class_uses(src)
-  assert any('ArrayList' in fqn for fqn in uses['local'])
+  rec = _rec(class_uses(src), 'Foo')
+  assert any('ArrayList' in fqn for fqn in rec['uses']['local'])
 
 
 def test_class_uses_instantiates():
@@ -259,8 +257,8 @@ public class Foo {
   }
 }
 '''
-  _, _, uses, _, _ = class_uses(src)
-  assert any('ArrayList' in fqn for fqn in uses['instantiates'])
+  rec = _rec(class_uses(src), 'Foo')
+  assert any('ArrayList' in fqn for fqn in rec['uses']['instantiates'])
 
 
 def test_class_uses_static_method_call():
@@ -275,8 +273,8 @@ public class Foo {
   }
 }
 '''
-  _, _, uses, _, _ = class_uses(src)
-  assert 'com.example.util.Helper' in uses['local']
+  rec = _rec(class_uses(src), 'Foo')
+  assert 'com.example.util.Helper' in rec['uses']['local']
 
 
 def test_class_uses_static_field_access():
@@ -291,8 +289,8 @@ public class Foo {
   }
 }
 '''
-  _, _, uses, _, _ = class_uses(src)
-  assert 'com.example.util.Constants' in uses['local']
+  rec = _rec(class_uses(src), 'Foo')
+  assert 'com.example.util.Constants' in rec['uses']['local']
 
 
 def test_class_uses_static_call_same_package():
@@ -305,5 +303,169 @@ public class Foo {
   }
 }
 '''
-  _, _, uses, _, _ = class_uses(src)
-  assert 'com.example.Helper' in uses['local']
+  rec = _rec(class_uses(src), 'Foo')
+  assert 'com.example.Helper' in rec['uses']['local']
+
+
+# ── class_uses: nested types ─────────────────────────────────────────────────
+
+
+def test_class_uses_nested_class_is_own_record():
+  src = '''\
+package com.example;
+
+public class Outer {
+  static class Inner {
+    int x;
+  }
+}
+'''
+  names = {r['name'] for r in class_uses(src)}
+  assert names == {'Outer', 'Inner'}
+
+
+def test_class_uses_nested_class_fqn_and_enclosing():
+  src = '''\
+package com.example;
+
+public class Outer {
+  static class Inner {
+  }
+}
+'''
+  inner = _rec(class_uses(src), 'Inner')
+  assert inner['fqn'] == 'com.example.Outer.Inner'
+  assert inner['enclosing'] == 'com.example.Outer'
+
+
+def test_class_uses_top_level_enclosing_is_none():
+  outer = _rec(class_uses(_CLASS_SRC), 'MyClass')
+  assert outer['enclosing'] is None
+
+
+def test_class_uses_nested_class_unqualified_sibling_reference():
+  # A field of the enclosing class referring to its own nested class by bare name
+  # must resolve to the nested type's FQN, not to a (nonexistent) top-level sibling.
+  src = '''\
+package com.example;
+
+public class Outer {
+  static class Inner {
+  }
+  Inner field;
+}
+'''
+  outer = _rec(class_uses(src), 'Outer')
+  assert 'com.example.Outer.Inner' in outer['uses']['member']
+
+
+def test_class_uses_enclosing_instantiates_inner():
+  src = '''\
+package com.example;
+
+public class Outer {
+  static class Inner {
+  }
+  Object make() {
+    return new Inner();
+  }
+}
+'''
+  outer = _rec(class_uses(src), 'Outer')
+  assert 'com.example.Outer.Inner' in outer['uses']['instantiates']
+
+
+def test_class_uses_nested_class_self_reference():
+  src = '''\
+package com.example;
+
+public class Outer {
+  static class Inner {
+    Inner next;
+  }
+}
+'''
+  inner = _rec(class_uses(src), 'Inner')
+  assert 'com.example.Outer.Inner' in inner['uses']['member']
+
+
+def test_class_uses_qualified_nested_reference_from_sibling_top_level():
+  src = '''\
+package com.example;
+
+public class Outer {
+  static class Inner {
+  }
+}
+
+class Other {
+  Outer.Inner field;
+}
+'''
+  other = _rec(class_uses(src), 'Other')
+  assert 'com.example.Outer.Inner' in other['uses']['member']
+
+
+def test_class_uses_local_class_excluded():
+  src = '''\
+package com.example;
+
+public class Outer {
+  void run() {
+    class Local {
+      int x;
+    }
+  }
+}
+'''
+  names = {r['name'] for r in class_uses(src)}
+  assert names == {'Outer'}
+
+
+def test_class_uses_multiple_top_level_classes():
+  # Java allows more than one package-private top-level type per file — all must
+  # be found, not just the first (a pre-existing gap fixed as a side effect).
+  src = '''\
+package com.example;
+
+class First {
+}
+
+class Second {
+}
+'''
+  records = class_uses(src)
+  names = {r['name'] for r in records}
+  assert names == {'First', 'Second'}
+  assert all(r['enclosing'] is None for r in records)
+
+
+def test_class_uses_deeply_nested():
+  src = '''\
+package com.example;
+
+public class A {
+  static class B {
+    static class C {
+    }
+  }
+}
+'''
+  c = _rec(class_uses(src), 'C')
+  assert c['fqn'] == 'com.example.A.B.C'
+  assert c['enclosing'] == 'com.example.A.B'
+
+
+def test_class_uses_nested_interface():
+  src = '''\
+package com.example;
+
+public class Outer {
+  interface Listener {
+    void onEvent();
+  }
+}
+'''
+  listener = _rec(class_uses(src), 'Listener')
+  assert listener['kind'] == 'interface'
+  assert listener['fqn'] == 'com.example.Outer.Listener'

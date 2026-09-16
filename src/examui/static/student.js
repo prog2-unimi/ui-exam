@@ -500,7 +500,9 @@ document.querySelector('[data-bs-target="#tab-source"]')
   });
 
 // ── Dependency graph ─────────────────────────────────────────────────────────
-let _depsPathToNid = {};   // relpath → nid, populated after deps loads
+let _depsPathToNids = {};  // relpath → [nid, ...], populated after deps loads
+                            // (a file can hold several nodes: an outer class plus its
+                            // nested classes/interfaces all resolve to the same relpath)
 let _depsNodeFill  = {};   // nid → original kind fill
 
 function _highlightDepsNode(relpath) {
@@ -509,12 +511,14 @@ function _highlightDepsNode(relpath) {
     document.getElementById(nid)?.querySelector('polygon, ellipse')?.setAttribute('fill', fill);
   });
   if (!relpath) return;
-  const nid = _depsPathToNid[relpath];
-  if (!nid) return;
-  const g = document.getElementById(nid);
-  if (!g) return;
-  const shape = g.querySelector('polygon, ellipse');
-  if (shape) shape.setAttribute('fill', '#ffffcc');
+  const nids = _depsPathToNids[relpath];
+  if (!nids) return;
+  nids.forEach(nid => {
+    const g = document.getElementById(nid);
+    if (!g) return;
+    const shape = g.querySelector('polygon, ellipse');
+    if (shape) shape.setAttribute('fill', '#ffffcc');
+  });
 }
 
 async function loadDepsGraph() {
@@ -550,20 +554,20 @@ async function loadDepsGraph() {
     svgEl.addEventListener('dblclick', () => pz.reset());
   }
 
-  _depsPathToNid = {};
-  _depsNodeFill  = {};
+  _depsPathToNids = {};
+  _depsNodeFill   = {};
   Object.entries(data.paths).forEach(([nid, relpath]) => {
-    _depsPathToNid[relpath] = nid;
+    (_depsPathToNids[relpath] ??= []).push(nid);
     const shape = document.getElementById(nid)?.querySelector('polygon, ellipse');
     if (shape) _depsNodeFill[nid] = shape.getAttribute('fill');
     const el = document.getElementById(nid);
     if (!el) return;
     el.style.cursor = 'pointer';
     el.addEventListener('click', () => {
-      loadSourceFile(relpath, null);
-      bootstrap.Tab.getOrCreateInstance(
-        document.querySelector('[data-bs-target="#tab-source"]')
-      ).show();
+      // Jump to the declaration line, not just the top of the file — matters for
+      // nested classes/interfaces, which otherwise land wherever the enclosing
+      // class happens to scroll to.
+      openSymbol(relpath, data.lines[nid] ?? null);
     });
   });
 

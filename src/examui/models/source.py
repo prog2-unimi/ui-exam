@@ -134,8 +134,15 @@ def _split_html_lines(html: str) -> list[str]:
 
 @cache
 def _trivial_rel_paths(root: Path) -> set[str]:
-  """Return root-relative paths of all trivial .java files (by name or inheritance closure)."""
+  """Return root-relative paths of all trivial .java files (by name or inheritance closure).
+
+  A file may declare several types (nested classes/interfaces, or more than one
+  top-level type) — the file as a whole is only considered trivial if every type
+  it declares is trivial, so one interesting nested/sibling type keeps the whole
+  file visible.
+  """
   parsed: dict[str, dict] = {}
+  file_fqns: dict[str, list[str]] = {}
   for f in root.rglob('*.java'):
     if f.stem == 'package-info':
       continue
@@ -143,19 +150,20 @@ def _trivial_rel_paths(root: Path) -> set[str]:
       continue
     try:
       text = f.read_text(errors='replace')
-      pkg, simple, uses, _, _kind = parsing.class_uses(text)
-      if not simple:
-        continue
-      fqn = f'{pkg}.{simple}' if pkg else simple
-      parsed[fqn] = {
-        'rel': str(f.relative_to(root)),
-        'uses': uses,
-        'trivial': _graph.is_trivial(simple, uses),
-      }
+      rel = str(f.relative_to(root))
+      fqns = []
+      for rec in parsing.class_uses(text):
+        parsed[rec['fqn']] = {
+          'uses': rec['uses'],
+          'trivial': _graph.is_trivial(rec['name'], rec['uses']),
+        }
+        fqns.append(rec['fqn'])
+      if fqns:
+        file_fqns[rel] = fqns
     except Exception:
       pass
   _graph.close_trivial(parsed)
-  return {info['rel'] for info in parsed.values() if info['trivial']}
+  return {rel for rel, fqns in file_fqns.items() if all(parsed[fqn]['trivial'] for fqn in fqns)}
 
 
 _NID_RE = re.compile(r'[^a-zA-Z0-9_]')
@@ -198,7 +206,7 @@ def file(email: str, relpath: str) -> dict | None:
 def deps(email: str) -> dict:
   root = _root(email)
   if not root.exists():
-    return {'svg': '', 'paths': {}}
+    return {'svg': '', 'paths': {}, 'lines': {}}
 
   java_files = [
     f
@@ -207,22 +215,21 @@ def deps(email: str) -> dict:
     and not _graph.is_trivial_package(f.relative_to(root).parts[:-1], config.TRIVIAL_PACKAGES)
   ]
 
-  # Pass 1: parse all files
+  # Pass 1: parse all files — one entry per declared type (top-level and nested)
   all_parsed: dict[str, dict] = {}
   for f in java_files:
     text = f.read_text(errors='replace')
-    pkg, simple, uses, sym_count, kind = parsing.class_uses(text)
-    if not simple:
-      continue
-    fqn = f'{pkg}.{simple}' if pkg else simple
-    all_parsed[fqn] = {
-      'name': simple,
-      'path': str(f.relative_to(root)),
-      'uses': uses,
-      'sym_count': sym_count,
-      'kind': kind,
-      'trivial': _graph.is_trivial(simple, uses),
-    }
+    for rec in parsing.class_uses(text):
+      all_parsed[rec['fqn']] = {
+        'name': rec['name'],
+        'enclosing': rec['enclosing'],
+        'path': str(f.relative_to(root)),
+        'line': rec['line'],
+        'uses': rec['uses'],
+        'sym_count': rec['sym_count'],
+        'kind': rec['kind'],
+        'trivial': _graph.is_trivial(rec['name'], rec['uses']),
+      }
 
   # Pass 2: propagate trivial flag through inheritance chains
   _graph.close_trivial(all_parsed)
@@ -279,16 +286,26 @@ def deps(email: str) -> dict:
     edge_attr={'arrowsize': '0.4', 'color': '#888888'},
   )
 
+  def _label(fqn: str, info: dict) -> str:
+    # Nested types are labeled 'Container.Name' (one level, not the full FQN
+    # chain) — the dotted "contains" edge below carries the rest of the chain.
+    enclosing = info['enclosing']
+    if enclosing in class_info:
+      return f"{class_info[enclosing]['name']}.{info['name']}"
+    return info['name']
+
   paths: dict[str, str] = {}
+  lines: dict[str, int] = {}
 
   for scc_idx, scc in enumerate(sccs):
     if len(scc) == 1:
       fqn = scc[0]
       info = class_info[fqn]
       nid = _nid(fqn)
-      dot.node(fqn, label=info['name'], id=nid, tooltip=fqn,
+      dot.node(fqn, label=_label(fqn, info), id=nid, tooltip=fqn,
                fillcolor=_KIND_FILL.get(info['kind'], 'white'))
       paths[nid] = info['path']
+      lines[nid] = info['line']
     else:
       # Multi-node SCC — wrap in a cluster subgraph
       with dot.subgraph(name=f'cluster_{scc_idx}') as sg:
@@ -296,9 +313,10 @@ def deps(email: str) -> dict:
         for fqn in scc:
           info = class_info[fqn]
           nid = _nid(fqn)
-          sg.node(fqn, label=info['name'], id=nid, tooltip=fqn,
+          sg.node(fqn, label=_label(fqn, info), id=nid, tooltip=fqn,
                   fillcolor=_KIND_FILL.get(info['kind'], 'white'))
           paths[nid] = info['path']
+          lines[nid] = info['line']
 
   node_to_scc = {fqn: i for i, scc in enumerate(sccs) for fqn in scc}
 
@@ -311,8 +329,17 @@ def deps(email: str) -> dict:
         dot.edge(tgt, src_fqn)
         drawn.add((src_fqn, tgt))
 
+  # "Contains" edges — purely structural (container declares nested type), so they're
+  # dotted/undirected and excluded from cycle detection and transitive reduction above
+  # (constraint=false keeps them from perturbing the dependency-driven left-right rank).
+  for fqn, info in class_info.items():
+    enclosing = info['enclosing']
+    if enclosing in known:
+      dot.edge(enclosing, fqn, style='dotted', color='#bbbbbb', dir='none',
+                constraint='false', penwidth='0.6')
+
   svg = dot.pipe(format='svg').decode('utf-8')
-  return {'svg': svg, 'paths': paths}
+  return {'svg': svg, 'paths': paths, 'lines': lines}
 
 
 def warmup(email: str) -> None:

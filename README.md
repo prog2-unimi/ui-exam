@@ -102,25 +102,8 @@ The app listens on `127.0.0.1:8765`.
 
 On the exam host, the tablet's key is granted `dhserve` as its forced command,
 serving `examui:create_app()` from this directory on port 8765 (see
-`dhserve --help`).
-
-Add the client-side variables to `.envrc` (or a separate `.envrc` on the
-tablet):
-
-```shell
-EXAMUI_HOST=svm        # SSH host alias from ~/.ssh/config
-EXAMUI_KEY=~/.ssh/id_examui
-EXAMUI_PORT=8765
-```
-
-Then on the tablet:
-
-```shell
-./bin/client
-```
-
-This opens the SSH tunnel, waits for gunicorn to be reachable, launches the
-browser, and tears everything down on Ctrl-C.
+`dhserve --help`). On the tablet, open the app with `dhtunnel`, which opens the
+SSH tunnel and shows the app in the browser.
 
 ### `bin/publish` — deploy the public schedule page
 

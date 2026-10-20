@@ -119,17 +119,8 @@ is `dhserve --help`. It sources `.env` from the project root, runs gunicorn on
 connection does, so nothing may live in memory alone. Logs go to
 `~/.local/state/dhevmera/ui-exam.log`.
 
-`./bin/client` runs on the tablet (Termux). It sources `.env` from the project
-root for:
-
-| Variable      | Meaning                               |
-| ------------- | ------------------------------------- |
-| `EXAMUI_HOST` | SSH host alias (from `~/.ssh/config`) |
-| `EXAMUI_KEY`  | Path to the dedicated SSH private key |
-| `EXAMUI_PORT` | Local/remote port (default `8765`)    |
-
-It opens the tunnel, waits for the port to be reachable, launches the browser
-via `termux-open-url`, and tears down the tunnel on Ctrl-C.
+The tablet opens the app with `dhtunnel` (tunnel and browser); the repository
+carries no client script. `bin/giustifica` still reads `EXAMUI_PORT`.
 
 Single-worker gunicorn is a hard requirement (in-process `@cache`).
 

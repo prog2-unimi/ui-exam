@@ -1,21 +1,21 @@
 const MARK_CSS = {
-  passato:   'bg-success',
-  rifiutato: 'bg-primary',
-  respinto:  'bg-danger',
-  ritirato:  'bg-orange',
+  passato: "bg-success",
+  rifiutato: "bg-primary",
+  respinto: "bg-danger",
+  ritirato: "bg-orange",
 };
 
 const MARK_LABEL = {
-  respinto: 'RE',
-  ritirato: 'RI',
+  respinto: "RE",
+  ritirato: "RI",
 };
 
 function updateClock() {
-  const el = document.getElementById('wall-clock');
+  const el = document.getElementById("wall-clock");
   if (!el) return;
   const now = new Date();
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
   el.textContent = `${hh}:${mm}`;
 }
 
@@ -23,23 +23,24 @@ updateClock();
 setInterval(updateClock, 1000);
 
 function updatePaceBadge() {
-  fetch('/api/pace')
-    .then(r => r.json())
-    .then(d => {
-      const el = document.getElementById('pace-badge');
+  fetch("/api/pace")
+    .then((r) => r.json())
+    .then((d) => {
+      const el = document.getElementById("pace-badge");
       if (!el) return;
       if (!d.visible) {
-        el.className = 'd-none badge fs-6';
+        el.className = "d-none badge fs-6";
         return;
       }
       let delta = d.delta;
-      const timer = JSON.parse(sessionStorage.getItem('examTimer') || 'null');
+      const timer = JSON.parse(sessionStorage.getItem("examTimer") || "null");
       if (timer) delta += (Date.now() - timer.startMs) / 60000;
       const rounded = Math.round(delta);
       const abs = Math.abs(rounded);
-      const [prefix, cls] = rounded >= 0
-        ? ['+', 'badge fs-6 bg-success']
-        : ['-', 'badge fs-6 bg-danger'];
+      const [prefix, cls] =
+        rounded >= 0
+          ? ["+", "badge fs-6 bg-success"]
+          : ["-", "badge fs-6 bg-danger"];
       el.className = cls;
       el.textContent = `${prefix}${abs}m`;
     })
@@ -58,10 +59,10 @@ function renderMark(vm, cm) {
   }
   if (vm) {
     const label = MARK_LABEL[vm.kind] ?? String(vm.value);
-    return `<span class="badge ${MARK_CSS[vm.kind] ?? 'bg-secondary'}">${label}</span>`;
+    return `<span class="badge ${MARK_CSS[vm.kind] ?? "bg-secondary"}">${label}</span>`;
   }
   if (inSchedule) {
     return `<span class="badge bg-info" style="min-width:2.2em;">&nbsp;</span>`;
   }
-  return '';
+  return "";
 }

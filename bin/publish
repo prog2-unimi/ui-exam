@@ -19,7 +19,10 @@ PORT=8766
 # shells, which never read ~/.bash_profile.
 [ -r "$HOME/.bash_secrets" ] && source "$HOME/.bash_secrets"
 
-if [ ! -f "$APPDIR/.env" ]; then echo "ERROR: .env not found"; exit 1; fi
+if [ ! -f "$APPDIR/.env" ]; then
+  echo "ERROR: .env not found"
+  exit 1
+fi
 source "$APPDIR/.env"
 
 TMPDIR="$(mktemp -d)"
@@ -27,42 +30,42 @@ cd "$APPDIR"
 
 GUNICORN_PID=""
 cleanup() {
-    if [ -n "$GUNICORN_PID" ]; then
-        kill "$GUNICORN_PID" 2>/dev/null || true
-        wait "$GUNICORN_PID" 2>/dev/null || true
-    fi
-    rm -rf "$TMPDIR"
+  if [ -n "$GUNICORN_PID" ]; then
+    kill "$GUNICORN_PID" 2>/dev/null || true
+    wait "$GUNICORN_PID" 2>/dev/null || true
+  fi
+  rm -rf "$TMPDIR"
 }
 trap cleanup EXIT
 
 echo "Starting temporary server on port $PORT..."
 uv run gunicorn --workers=1 --bind="127.0.0.1:$PORT" 'examui:create_app()' \
-    > "$TMPDIR/gunicorn.log" 2>&1 &
+  >"$TMPDIR/gunicorn.log" 2>&1 &
 GUNICORN_PID=$!
 disown
 
 for i in $(seq 1 60); do
-    if curl -sf -o /dev/null "http://localhost:$PORT/api/schedule/public"; then break; fi
-    if ! kill -0 "$GUNICORN_PID" 2>/dev/null; then
-        echo "ERROR: server failed to start — log follows:" >&2
-        cat "$TMPDIR/gunicorn.log" >&2
-        exit 1
-    fi
-    sleep 1
+  if curl -sf -o /dev/null "http://localhost:$PORT/api/schedule/public"; then break; fi
+  if ! kill -0 "$GUNICORN_PID" 2>/dev/null; then
+    echo "ERROR: server failed to start — log follows:" >&2
+    cat "$TMPDIR/gunicorn.log" >&2
+    exit 1
+  fi
+  sleep 1
 done
 
 QS=""
 if [ "${1:-}" = "--tba" ]; then QS="?tba=1"; fi
 
 echo "Fetching public schedule..."
-curl -sf "http://localhost:$PORT/api/schedule/public${QS}" > "$TMPDIR/index.html"
+curl -sf "http://localhost:$PORT/api/schedule/public${QS}" >"$TMPDIR/index.html"
 
 kill "$GUNICORN_PID" 2>/dev/null || true
 wait "$GUNICORN_PID" 2>/dev/null || true
 GUNICORN_PID=""
 
 # Disable any build command Netlify may have configured for this site
-cat > "$TMPDIR/netlify.toml" <<'EOF'
+cat >"$TMPDIR/netlify.toml" <<'EOF'
 [build]
   command = ""
   publish = "."
@@ -71,9 +74,9 @@ EOF
 echo "Deploying to Netlify..."
 cd "$TMPDIR"
 netlify deploy --prod \
-    --dir="." \
-    --site="$NETLIFY_SITE_ID" \
-    --auth="$NETLIFY_AUTH_TOKEN" \
-    --message="schedule update $(date '+%Y-%m-%d %H:%M')"
+  --dir="." \
+  --site="$NETLIFY_SITE_ID" \
+  --auth="$NETLIFY_AUTH_TOKEN" \
+  --message="schedule update $(date '+%Y-%m-%d %H:%M')"
 
 echo "Done."

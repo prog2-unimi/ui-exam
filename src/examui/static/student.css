@@ -1,34 +1,99 @@
-.source-file:hover  { background: var(--bs-primary-bg-subtle); cursor: pointer; }
-.source-file.active { background: var(--bs-primary-bg-subtle); font-weight: 500; }
-:root { --src-font-size: 13px; }
-.src-pre          { font-family: monospace; font-size: var(--src-font-size); line-height: 1.5; margin: 0; }
-.src-line         { display: flex; align-items: baseline; min-height: 1.5em; }
-.src-line:hover   { background: rgba(0,0,0,.04); }
-.src-ln           { min-width: 2.5rem; padding-right: .6rem; text-align: right;
-                    color: #bbb; user-select: none; flex-shrink: 0; }
-.src-gutter       { width: 1.2rem; flex-shrink: 0; text-align: center; align-self: center; }
-.src-code         { flex: 1; white-space: pre; overflow-x: visible; }
-.src-jd           { color: #888; cursor: pointer; font-size: .85em; }
-.src-jd:hover     { color: var(--bs-primary); }
-#deps-container svg { display: block; }
+.source-file:hover {
+  background: var(--bs-primary-bg-subtle);
+  cursor: pointer;
+}
+.source-file.active {
+  background: var(--bs-primary-bg-subtle);
+  font-weight: 500;
+}
+:root {
+  --src-font-size: 13px;
+}
+.src-pre {
+  font-family: monospace;
+  font-size: var(--src-font-size);
+  line-height: 1.5;
+  margin: 0;
+}
+.src-line {
+  display: flex;
+  align-items: baseline;
+  min-height: 1.5em;
+}
+.src-line:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.src-ln {
+  min-width: 2.5rem;
+  padding-right: 0.6rem;
+  text-align: right;
+  color: #bbb;
+  user-select: none;
+  flex-shrink: 0;
+}
+.src-gutter {
+  width: 1.2rem;
+  flex-shrink: 0;
+  text-align: center;
+  align-self: center;
+}
+.src-code {
+  flex: 1;
+  white-space: pre;
+  overflow-x: visible;
+}
+.src-jd {
+  color: #888;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.src-jd:hover {
+  color: var(--bs-primary);
+}
+#deps-container svg {
+  display: block;
+}
 
-.diff-added    { color: var(--bs-success); }
-.diff-modified { color: #b8860b; }
-.diff-removed  { color: var(--bs-danger); text-decoration: line-through; }
+.diff-added {
+  color: var(--bs-success);
+}
+.diff-modified {
+  color: #b8860b;
+}
+.diff-removed {
+  color: var(--bs-danger);
+  text-decoration: line-through;
+}
 
 /* Two-column diff view: reuses .src/.src-pre/.src-ln/.src-code so syntax
    highlighting and font-size controls match the normal file view. A real
    <table> (not flex rows) gives every row's old/new columns one consistent
    width each, and lets the whole thing scroll horizontally as a single unit
    (via #source-code's own overflow-auto) instead of one scrollbar per line. */
-.diff2-table              { border-collapse: collapse; }
-.diff2-side               { padding: 0; vertical-align: baseline; }
-.diff2-old                { border-right: 1px solid var(--bs-border-color); }
-.diff2-kind-delete  .diff2-old  { background: #f8d7d7; }
-.diff2-kind-insert  .diff2-new  { background: #d7f5d7; }
+.diff2-table {
+  border-collapse: collapse;
+}
+.diff2-side {
+  padding: 0;
+  vertical-align: baseline;
+}
+.diff2-old {
+  border-right: 1px solid var(--bs-border-color);
+}
+.diff2-kind-delete .diff2-old {
+  background: #f8d7d7;
+}
+.diff2-kind-insert .diff2-new {
+  background: #d7f5d7;
+}
 .diff2-kind-replace .diff2-old,
-.diff2-kind-replace .diff2-new  { background: rgba(184, 134, 11, 0.25); } /* same hue as .diff-modified (#b8860b) */
+.diff2-kind-replace .diff2-new {
+  background: rgba(184, 134, 11, 0.25);
+} /* same hue as .diff-modified (#b8860b) */
 .diff2-skip {
-  text-align: center; font-size: .75rem; color: var(--bs-secondary-color);
-  background: var(--bs-tertiary-bg); padding: .15rem 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+  background: var(--bs-tertiary-bg);
+  padding: 0.15rem 0;
 }

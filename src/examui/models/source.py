@@ -78,7 +78,9 @@ def _walk(path: Path, root: Path, trivial_paths: set[str], parent_trivial: bool 
   for entry in entries:
     rel = str(entry.relative_to(root))
     if entry.is_dir():
-      trivial = parent_trivial or _graph.is_trivial_package(entry.relative_to(root).parts, config.TRIVIAL_PACKAGES)
+      trivial = parent_trivial or _graph.is_trivial_package(
+        entry.relative_to(root).parts, config.TRIVIAL_PACKAGES
+      )
       children = _walk(entry, root, trivial_paths, trivial)
       if children:
         items.append(
@@ -258,11 +260,11 @@ def deps(email: str) -> dict:
     scc.sort(key=lambda fqn: (out_degree[fqn], class_info[fqn]['sym_count']))
 
   _KIND_FILL = {
-    'class':     'white',
-    'abstract':  '#f0f0f0',
+    'class': 'white',
+    'abstract': '#f0f0f0',
     'interface': '#ddeeff',
-    'record':    '#ddffdd',
-    'enum':      '#fde8d0',
+    'record': '#ddffdd',
+    'enum': '#fde8d0',
   }
 
   # Build Graphviz graph
@@ -291,7 +293,7 @@ def deps(email: str) -> dict:
     # chain) — the dotted "contains" edge below carries the rest of the chain.
     enclosing = info['enclosing']
     if enclosing in class_info:
-      return f"{class_info[enclosing]['name']}.{info['name']}"
+      return f'{class_info[enclosing]["name"]}.{info["name"]}'
     return info['name']
 
   paths: dict[str, str] = {}
@@ -302,8 +304,13 @@ def deps(email: str) -> dict:
       fqn = scc[0]
       info = class_info[fqn]
       nid = _nid(fqn)
-      dot.node(fqn, label=_label(fqn, info), id=nid, tooltip=fqn,
-               fillcolor=_KIND_FILL.get(info['kind'], 'white'))
+      dot.node(
+        fqn,
+        label=_label(fqn, info),
+        id=nid,
+        tooltip=fqn,
+        fillcolor=_KIND_FILL.get(info['kind'], 'white'),
+      )
       paths[nid] = info['path']
       lines[nid] = info['line']
     else:
@@ -313,8 +320,13 @@ def deps(email: str) -> dict:
         for fqn in scc:
           info = class_info[fqn]
           nid = _nid(fqn)
-          sg.node(fqn, label=_label(fqn, info), id=nid, tooltip=fqn,
-                  fillcolor=_KIND_FILL.get(info['kind'], 'white'))
+          sg.node(
+            fqn,
+            label=_label(fqn, info),
+            id=nid,
+            tooltip=fqn,
+            fillcolor=_KIND_FILL.get(info['kind'], 'white'),
+          )
           paths[nid] = info['path']
           lines[nid] = info['line']
 
@@ -335,8 +347,15 @@ def deps(email: str) -> dict:
   for fqn, info in class_info.items():
     enclosing = info['enclosing']
     if enclosing in known:
-      dot.edge(enclosing, fqn, style='dotted', color='#bbbbbb', dir='none',
-                constraint='false', penwidth='0.6')
+      dot.edge(
+        enclosing,
+        fqn,
+        style='dotted',
+        color='#bbbbbb',
+        dir='none',
+        constraint='false',
+        penwidth='0.6',
+      )
 
   svg = dot.pipe(format='svg').decode('utf-8')
   return {'svg': svg, 'paths': paths, 'lines': lines}

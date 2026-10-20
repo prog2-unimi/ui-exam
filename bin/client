@@ -11,7 +11,10 @@
 #   EXAMUI_PORT=8765
 
 BINDIR="$(dirname "$(realpath "$0")")"
-if [ ! -f "$BINDIR/../.env" ]; then echo "ERROR: .env not found" >&2; exit 1; fi
+if [ ! -f "$BINDIR/../.env" ]; then
+  echo "ERROR: .env not found" >&2
+  exit 1
+fi
 source "$BINDIR/../.env"
 
 : "${EXAMUI_HOST:?EXAMUI_HOST not set in .env}"
@@ -20,19 +23,19 @@ source "$BINDIR/../.env"
 
 unset SSH_AUTH_SOCK SSH_AGENT_PID
 ssh -i "$EXAMUI_KEY" -o IdentitiesOnly=yes \
-    -L "${EXAMUI_PORT}:localhost:${EXAMUI_PORT}" "$EXAMUI_HOST" < <(sleep infinity) 2>&1 &
+  -L "${EXAMUI_PORT}:localhost:${EXAMUI_PORT}" "$EXAMUI_HOST" < <(sleep infinity) 2>&1 &
 SSH_PID=$!
 
 trap "kill $SSH_PID 2>/dev/null; wait $SSH_PID 2>/dev/null" EXIT INT TERM
 
 echo "Connecting…"
 for i in $(seq 1 15); do
-    if nc -z localhost "$EXAMUI_PORT" 2>/dev/null; then break; fi
-    if ! kill -0 "$SSH_PID" 2>/dev/null; then
-        echo "SSH process died — check key/host config" >&2
-        exit 1
-    fi
-    sleep 1
+  if nc -z localhost "$EXAMUI_PORT" 2>/dev/null; then break; fi
+  if ! kill -0 "$SSH_PID" 2>/dev/null; then
+    echo "SSH process died — check key/host config" >&2
+    exit 1
+  fi
+  sleep 1
 done
 
 termux-open-url "http://localhost:${EXAMUI_PORT}"

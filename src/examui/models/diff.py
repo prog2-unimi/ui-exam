@@ -42,7 +42,9 @@ def _ensure_old_root(email: str, old_date: str) -> tuple[Path, bool]:
 
   template = config.PROJECTS_DIR / f'{old_date}.zip'
   raw = not template.exists()
-  _diff.materialize_consegna(consegna, root, cache_dir / 'scratch', email, None if raw else template)
+  _diff.materialize_consegna(
+    consegna, root, cache_dir / 'scratch', email, None if raw else template
+  )
   if raw:
     raw_marker.touch()
   return root, raw
@@ -107,9 +109,13 @@ def file_rows(email: str, old_date: str, relpath: str) -> dict | None:
       continue
     old_no = old_linenos[row['old_no'] - 1] if row['old_no'] else None
     new_no = new_linenos[row['new_no'] - 1] if row['new_no'] else None
-    rows.append({
-      'kind': row['kind'],
-      'oldNo': old_no, 'oldHtml': old_html[old_no - 1] if old_no else None,
-      'newNo': new_no, 'newHtml': new_html[new_no - 1] if new_no else None,
-    })
+    rows.append(
+      {
+        'kind': row['kind'],
+        'oldNo': old_no,
+        'oldHtml': old_html[old_no - 1] if old_no else None,
+        'newNo': new_no,
+        'newHtml': new_html[new_no - 1] if new_no else None,
+      }
+    )
   return {'rows': rows}

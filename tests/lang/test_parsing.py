@@ -13,7 +13,7 @@ def _by_name(syms, name):
 
 # ── symbols ───────────────────────────────────────────────────────────────────
 
-_CLASS_SRC = '''\
+_CLASS_SRC = """\
 package com.example;
 
 import java.util.List;
@@ -33,18 +33,18 @@ public class MyClass {
     return null;
   }
 }
-'''
+"""
 
-_INTERFACE_SRC = '''\
+_INTERFACE_SRC = """\
 package com.example;
 
 public interface Sortable {
   int compareTo(Object other);
   boolean isEmpty();
 }
-'''
+"""
 
-_ENUM_SRC = '''\
+_ENUM_SRC = """\
 package com.example;
 
 public enum Color {
@@ -54,9 +54,9 @@ public enum Color {
     return name().toLowerCase();
   }
 }
-'''
+"""
 
-_INHERIT_SRC = '''\
+_INHERIT_SRC = """\
 package com.example;
 
 import java.util.ArrayList;
@@ -66,7 +66,7 @@ public class ExtendedList extends ArrayList<String> implements Comparable<Extend
     return 0;
   }
 }
-'''
+"""
 
 
 def test_symbols_class_contains_type_declaration():
@@ -160,13 +160,13 @@ def test_class_uses_return_type():
 
 
 def test_class_uses_constructor_parameter():
-  src = '''\
+  src = """\
 package com.example;
 import java.util.List;
 public class Wrapper {
   private List<String> items;
   public Wrapper(List<String> items) { this.items = items; }
-}'''
+}"""
   rec = _rec(class_uses(src), 'Wrapper')
   # constructor takes List<String> — resolved via import
   assert 'java.util.List' in rec['uses']['parameter']
@@ -207,30 +207,30 @@ def test_class_uses_empty_source():
 def test_class_uses_abstract_kind():
   # tree-sitter does not expose 'modifiers' as a named field on class_declaration,
   # so child_by_field_name('modifiers') returns None and kind falls back to 'class'.
-  src = '''\
+  src = """\
 package com.example;
 
 public abstract class Shape {
   public abstract double area();
 }
-'''
+"""
   rec = _rec(class_uses(src), 'Shape')
   assert rec['kind'] in ('abstract', 'class')
 
 
 def test_class_uses_record_kind():
-  src = '''\
+  src = """\
 package com.example;
 
 public record Point(int x, int y) {}
-'''
+"""
   rec = _rec(class_uses(src), 'Point')
   assert rec['kind'] == 'record'
   assert rec['fqn'] == 'com.example.Point'
 
 
 def test_class_uses_local_variable():
-  src = '''\
+  src = """\
 package com.example;
 
 import java.util.ArrayList;
@@ -240,13 +240,13 @@ public class Foo {
     ArrayList<String> list = new ArrayList<>();
   }
 }
-'''
+"""
   rec = _rec(class_uses(src), 'Foo')
   assert any('ArrayList' in fqn for fqn in rec['uses']['local'])
 
 
 def test_class_uses_instantiates():
-  src = '''\
+  src = """\
 package com.example;
 
 import java.util.ArrayList;
@@ -256,13 +256,13 @@ public class Foo {
     Object o = new ArrayList<>();
   }
 }
-'''
+"""
   rec = _rec(class_uses(src), 'Foo')
   assert any('ArrayList' in fqn for fqn in rec['uses']['instantiates'])
 
 
 def test_class_uses_static_method_call():
-  src = '''\
+  src = """\
 package com.example;
 
 import com.example.util.Helper;
@@ -272,13 +272,13 @@ public class Foo {
     Helper.doSomething();
   }
 }
-'''
+"""
   rec = _rec(class_uses(src), 'Foo')
   assert 'com.example.util.Helper' in rec['uses']['local']
 
 
 def test_class_uses_static_field_access():
-  src = '''\
+  src = """\
 package com.example;
 
 import com.example.util.Constants;
@@ -288,13 +288,13 @@ public class Foo {
     int x = Constants.MAX_VALUE;
   }
 }
-'''
+"""
   rec = _rec(class_uses(src), 'Foo')
   assert 'com.example.util.Constants' in rec['uses']['local']
 
 
 def test_class_uses_static_call_same_package():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Foo {
@@ -302,7 +302,7 @@ public class Foo {
     Helper.doSomething();
   }
 }
-'''
+"""
   rec = _rec(class_uses(src), 'Foo')
   assert 'com.example.Helper' in rec['uses']['local']
 
@@ -311,7 +311,7 @@ public class Foo {
 
 
 def test_class_uses_nested_class_is_own_record():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
@@ -319,20 +319,20 @@ public class Outer {
     int x;
   }
 }
-'''
+"""
   names = {r['name'] for r in class_uses(src)}
   assert names == {'Outer', 'Inner'}
 
 
 def test_class_uses_nested_class_fqn_and_enclosing():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
   static class Inner {
   }
 }
-'''
+"""
   inner = _rec(class_uses(src), 'Inner')
   assert inner['fqn'] == 'com.example.Outer.Inner'
   assert inner['enclosing'] == 'com.example.Outer'
@@ -346,7 +346,7 @@ def test_class_uses_top_level_enclosing_is_none():
 def test_class_uses_nested_class_unqualified_sibling_reference():
   # A field of the enclosing class referring to its own nested class by bare name
   # must resolve to the nested type's FQN, not to a (nonexistent) top-level sibling.
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
@@ -354,13 +354,13 @@ public class Outer {
   }
   Inner field;
 }
-'''
+"""
   outer = _rec(class_uses(src), 'Outer')
   assert 'com.example.Outer.Inner' in outer['uses']['member']
 
 
 def test_class_uses_enclosing_instantiates_inner():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
@@ -370,13 +370,13 @@ public class Outer {
     return new Inner();
   }
 }
-'''
+"""
   outer = _rec(class_uses(src), 'Outer')
   assert 'com.example.Outer.Inner' in outer['uses']['instantiates']
 
 
 def test_class_uses_nested_class_self_reference():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
@@ -384,13 +384,13 @@ public class Outer {
     Inner next;
   }
 }
-'''
+"""
   inner = _rec(class_uses(src), 'Inner')
   assert 'com.example.Outer.Inner' in inner['uses']['member']
 
 
 def test_class_uses_qualified_nested_reference_from_sibling_top_level():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
@@ -401,13 +401,13 @@ public class Outer {
 class Other {
   Outer.Inner field;
 }
-'''
+"""
   other = _rec(class_uses(src), 'Other')
   assert 'com.example.Outer.Inner' in other['uses']['member']
 
 
 def test_class_uses_local_class_excluded():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
@@ -417,7 +417,7 @@ public class Outer {
     }
   }
 }
-'''
+"""
   names = {r['name'] for r in class_uses(src)}
   assert names == {'Outer'}
 
@@ -425,7 +425,7 @@ public class Outer {
 def test_class_uses_multiple_top_level_classes():
   # Java allows more than one package-private top-level type per file — all must
   # be found, not just the first (a pre-existing gap fixed as a side effect).
-  src = '''\
+  src = """\
 package com.example;
 
 class First {
@@ -433,7 +433,7 @@ class First {
 
 class Second {
 }
-'''
+"""
   records = class_uses(src)
   names = {r['name'] for r in records}
   assert names == {'First', 'Second'}
@@ -441,7 +441,7 @@ class Second {
 
 
 def test_class_uses_deeply_nested():
-  src = '''\
+  src = """\
 package com.example;
 
 public class A {
@@ -450,14 +450,14 @@ public class A {
     }
   }
 }
-'''
+"""
   c = _rec(class_uses(src), 'C')
   assert c['fqn'] == 'com.example.A.B.C'
   assert c['enclosing'] == 'com.example.A.B'
 
 
 def test_class_uses_nested_interface():
-  src = '''\
+  src = """\
 package com.example;
 
 public class Outer {
@@ -465,7 +465,7 @@ public class Outer {
     void onEvent();
   }
 }
-'''
+"""
   listener = _rec(class_uses(src), 'Listener')
   assert listener['kind'] == 'interface'
   assert listener['fqn'] == 'com.example.Outer.Listener'

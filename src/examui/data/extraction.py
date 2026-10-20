@@ -43,9 +43,7 @@ def _strip_leading_comment(java_dir: Path) -> None:
       path.write_text(stripped)
 
 
-def extract_source(
-  email: str, consegna: Path, template_zip: Path, source_dir: Path
-) -> Path:
+def extract_source(email: str, consegna: Path, template_zip: Path, source_dir: Path) -> Path:
   """Overlay a student's consegna.zip onto a template project and spotlessApply it.
 
   Shared by the pipeline's `compute` step (current exam) and the `diff` tool

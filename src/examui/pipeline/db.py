@@ -120,8 +120,16 @@ def upsert_computed(
     '  sloc_code, sloc_docs, sloc_files, slocc_code, slocc_files)'
     ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     (
-      email, source_hash, tests_status, javadoc_status, javadoc_cyclic,
-      sloc_code, sloc_docs, sloc_files, slocc_code, slocc_files,
+      email,
+      source_hash,
+      tests_status,
+      javadoc_status,
+      javadoc_cyclic,
+      sloc_code,
+      sloc_docs,
+      sloc_files,
+      slocc_code,
+      slocc_files,
     ),
   )
 

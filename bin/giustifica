@@ -22,7 +22,10 @@ EOF
 
 [ $# -lt 2 ] && usage
 
-EMAIL="$1"; TITOLO="$2"; INIZIO="${3:-}"; FINE="${4:-}"
+EMAIL="$1"
+TITOLO="$2"
+INIZIO="${3:-}"
+FINE="${4:-}"
 
 TMPFILE=$(mktemp)
 trap "rm -f $TMPFILE" EXIT
@@ -30,9 +33,12 @@ trap "rm -f $TMPFILE" EXIT
 CURL_ARGS=(-s --connect-timeout 5 -o "$TMPFILE" -w "%{http_code}" -G "${BASE}/student/${EMAIL}/giustifica"
   --data-urlencode "titolo=$TITOLO")
 [ -n "$INIZIO" ] && CURL_ARGS+=(--data-urlencode "inizio=$INIZIO")
-[ -n "$FINE"   ] && CURL_ARGS+=(--data-urlencode "fine=$FINE")
+[ -n "$FINE" ] && CURL_ARGS+=(--data-urlencode "fine=$FINE")
 
-STATUS=$(curl "${CURL_ARGS[@]}") || { echo "Cannot reach $BASE — is the server running?" >&2; exit 1; }
+STATUS=$(curl "${CURL_ARGS[@]}") || {
+  echo "Cannot reach $BASE — is the server running?" >&2
+  exit 1
+}
 
 case "$STATUS" in
   200)
@@ -42,7 +48,7 @@ case "$STATUS" in
     ;;
   400)
     echo "Ambiguous — matches:" >&2
-    python3 -c "import json,sys; [print(' ', m) for m in json.load(sys.stdin)['matches']]" < "$TMPFILE" >&2
+    python3 -c "import json,sys; [print(' ', m) for m in json.load(sys.stdin)['matches']]" <"$TMPFILE" >&2
     exit 1
     ;;
   404)

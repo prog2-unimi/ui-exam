@@ -15,9 +15,25 @@ from examui.pipeline import db
 _log = logging.getLogger(__name__)
 
 _MARKS_COLUMNS = [
-  'mark', 'note', 'email', 'regnum', 'tests', 'javadoc', 'cyclic',
-  'code', 'docs', 'file', 'ccode', 'cfile', 'date', 'upload',
-  'num', 'first', 'rej', 'acc', 'other',
+  'mark',
+  'note',
+  'email',
+  'regnum',
+  'tests',
+  'javadoc',
+  'cyclic',
+  'code',
+  'docs',
+  'file',
+  'ccode',
+  'cfile',
+  'date',
+  'upload',
+  'num',
+  'first',
+  'rej',
+  'acc',
+  'other',
 ]
 
 
@@ -102,27 +118,29 @@ def collect_marks(
     cal = calendar.get(email, {})
     up = uploads.get(email, {})
 
-    rows.append({
-      'mark': '',
-      'note': '',
-      'email': email,
-      'regnum': h.get('matricola', ''),
-      'tests': c.get('tests_status', ''),
-      'javadoc': c.get('javadoc_status', ''),
-      'cyclic': c.get('javadoc_cyclic', 'NO'),
-      'code': c.get('sloc_code', 0),
-      'docs': c.get('sloc_docs', 0),
-      'file': c.get('sloc_files', 0),
-      'ccode': c.get('slocc_code', 0),
-      'cfile': c.get('slocc_files', 0),
-      'date': cal.get('slot_date', ''),
-      'upload': up.get('upload_date', ''),
-      'num': h.get('num', 0),
-      'first': h.get('first_real', ''),
-      'rej': h.get('rejected', ''),
-      'acc': h.get('accepted', ''),
-      'other': h.get('other', ''),
-    })
+    rows.append(
+      {
+        'mark': '',
+        'note': '',
+        'email': email,
+        'regnum': h.get('matricola', ''),
+        'tests': c.get('tests_status', ''),
+        'javadoc': c.get('javadoc_status', ''),
+        'cyclic': c.get('javadoc_cyclic', 'NO'),
+        'code': c.get('sloc_code', 0),
+        'docs': c.get('sloc_docs', 0),
+        'file': c.get('sloc_files', 0),
+        'ccode': c.get('slocc_code', 0),
+        'cfile': c.get('slocc_files', 0),
+        'date': cal.get('slot_date', ''),
+        'upload': up.get('upload_date', ''),
+        'num': h.get('num', 0),
+        'first': h.get('first_real', ''),
+        'rej': h.get('rejected', ''),
+        'acc': h.get('accepted', ''),
+        'other': h.get('other', ''),
+      }
+    )
 
   new_df = pd.DataFrame(rows, columns=_MARKS_COLUMNS)
 
@@ -165,11 +183,7 @@ def write_noshow(
 
   path = evals_dir / exam_date / 'noshow.csv'
   rows = sorted(
-    (history[e]['matricola'], 'AS')
-    for e in history.keys() - computed
-    if history[e]['matricola']
+    (history[e]['matricola'], 'AS') for e in history.keys() - computed if history[e]['matricola']
   )
   pd.DataFrame(rows).to_csv(path, index=False, header=False)
   return path
-
-

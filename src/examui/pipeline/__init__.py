@@ -48,8 +48,12 @@ def fetch_uploads_cmd(ctx):
 
   with db.connect(ctx.obj['db_path']) as conn:
     count = fetch_uploads(
-      conn, config.UPLOADS_URL, config.UPLOADS_USERNAME, config.UPLOADS_SESSION,
-      password, ctx.obj['work_dir'],
+      conn,
+      config.UPLOADS_URL,
+      config.UPLOADS_USERNAME,
+      config.UPLOADS_SESSION,
+      password,
+      ctx.obj['work_dir'],
     )
   click.echo(f'Fetched {count} uploads')
 
@@ -68,11 +72,17 @@ def fetch_calendar_cmd(ctx):
     history_emails = [r['email'] for r in db.all_history(conn)]
     if not history_emails:
       from examui.data.history import enrolled_emails
+
       history_emails = list(enrolled_emails(config.HISTORY_DIR, ctx.obj['exam_date']))
 
     count = fetch_calendar(
-      conn, config.CAL_ENDPOINT, config.CAL_VERSION, config.CAL_EVENT,
-      calcom_key, ctx.obj['exam_date'], history_emails,
+      conn,
+      config.CAL_ENDPOINT,
+      config.CAL_VERSION,
+      config.CAL_EVENT,
+      calcom_key,
+      ctx.obj['exam_date'],
+      history_emails,
     )
   click.echo(f'Fetched {count} calendar bookings')
 

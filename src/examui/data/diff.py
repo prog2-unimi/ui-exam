@@ -47,7 +47,9 @@ def extract_backup_consegna(
       attempt = max(entries)
     elif attempt not in entries:
       available = ', '.join(str(a) for a in sorted(entries))
-      raise ValueError(f'{email} has no attempt {attempt} in session {old_date} (available: {available})')
+      raise ValueError(
+        f'{email} has no attempt {attempt} in session {old_date} (available: {available})'
+      )
     dest.write_bytes(zf.read(entries[attempt]))
   return attempt
 
@@ -108,22 +110,29 @@ def align_lines(old_lines: list[str], new_lines: list[str], context: int = 2) ->
       head = 0 if idx == 0 else context
       tail = 0 if idx == len(opcodes) - 1 else context
       if length <= head + tail:
-        rows += [{'kind': 'equal', 'old_no': i1 + k + 1, 'new_no': j1 + k + 1} for k in range(length)]
+        rows += [
+          {'kind': 'equal', 'old_no': i1 + k + 1, 'new_no': j1 + k + 1} for k in range(length)
+        ]
       else:
         rows += [{'kind': 'equal', 'old_no': i1 + k + 1, 'new_no': j1 + k + 1} for k in range(head)]
         rows.append({'kind': 'skip', 'count': length - head - tail})
-        rows += [{'kind': 'equal', 'old_no': i1 + k + 1, 'new_no': j1 + k + 1} for k in range(length - tail, length)]
+        rows += [
+          {'kind': 'equal', 'old_no': i1 + k + 1, 'new_no': j1 + k + 1}
+          for k in range(length - tail, length)
+        ]
     elif op == 'delete':
       rows += [{'kind': 'delete', 'old_no': k + 1, 'new_no': None} for k in range(i1, i2)]
     elif op == 'insert':
       rows += [{'kind': 'insert', 'old_no': None, 'new_no': k + 1} for k in range(j1, j2)]
     elif op == 'replace':
       for k in range(max(i2 - i1, j2 - j1)):
-        rows.append({
-          'kind': 'replace',
-          'old_no': i1 + k + 1 if i1 + k < i2 else None,
-          'new_no': j1 + k + 1 if j1 + k < j2 else None,
-        })
+        rows.append(
+          {
+            'kind': 'replace',
+            'old_no': i1 + k + 1 if i1 + k < i2 else None,
+            'new_no': j1 + k + 1 if j1 + k < j2 else None,
+          }
+        )
   return rows
 
 
@@ -142,7 +151,8 @@ def classify_files(
   added = sorted(new_files.keys() - old_files.keys())
   removed = sorted(old_files.keys() - new_files.keys())
   modified = [
-    rel for rel in sorted(old_files.keys() & new_files.keys())
+    rel
+    for rel in sorted(old_files.keys() & new_files.keys())
     if _nonblank_lines(old_files[rel]) != _nonblank_lines(new_files[rel])
   ]
   return old_files, new_files, added, removed, modified

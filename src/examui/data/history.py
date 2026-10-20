@@ -41,9 +41,7 @@ def read_enrollments(
   return mat2email, email2mat, names, enrollments
 
 
-def read_verbali(
-  history_dir: Path, course_name: str
-) -> list[tuple[str, str, str, str, str]]:
+def read_verbali(history_dir: Path, course_name: str) -> list[tuple[str, str, str, str, str]]:
   """Read all verbali XLS files for a given course.
 
   Returns list of (matricola, date_YYMMDD, voto_str, stato_str, name) tuples.
@@ -54,13 +52,15 @@ def read_verbali(
     df = pd.read_excel(xls, header=0)
     matching = df[df['Descrizione insegnamento'].str.casefold() == course_name.casefold()]
     for _, row in matching.iterrows():
-      rows.append((
-        str(row['Matricola']).strip(),
-        row['Data appello'].strftime('%y%m%d'),
-        str(row['Voto']),
-        str(row['Stato Esito']),
-        str(row.get('Nominativo studente', '')).strip(),
-      ))
+      rows.append(
+        (
+          str(row['Matricola']).strip(),
+          row['Data appello'].strftime('%y%m%d'),
+          str(row['Voto']),
+          str(row['Stato Esito']),
+          str(row.get('Nominativo studente', '')).strip(),
+        )
+      )
   return rows
 
 

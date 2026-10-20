@@ -26,7 +26,8 @@ def student(email):
   live = _live(email)
   vscode_url = (
     f'https://vscode.dev/tunnel/{config.VSCODE_TUNNEL}{config.STUDENT_BASE / email / "source"}'
-    if config.VSCODE_TUNNEL else None
+    if config.VSCODE_TUNNEL
+    else None
   )
   return render_template(
     'student.html',

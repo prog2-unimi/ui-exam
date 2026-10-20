@@ -144,7 +144,12 @@ def fetch_calendar(
     if choices:
       result, score, _ = process.extractOne(query, choices)
       if score < 50:
-        _log.warning('Calendar email %s has no good match (best: %s, score: %d) — skipping', query, result, score)
+        _log.warning(
+          'Calendar email %s has no good match (best: %s, score: %d) — skipping',
+          query,
+          result,
+          score,
+        )
         continue
       if score < 100:
         print(f'Mapped {query} to {result} (score {score})', flush=True, file=sys.stderr)

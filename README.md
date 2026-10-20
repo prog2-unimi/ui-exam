@@ -1,18 +1,21 @@
 # examui
 
 A Flask web application for assisting oral exam sessions in the
-[Programmazione II](https://prog2.di.unimi.it) course at Università degli Studi di Milano.
+[Programmazione II](https://prog2.di.unimi.it) course at Università degli Studi
+di Milano.
 
 Given a student's submitted source code and generated Javadoc, it provides:
 
 - a searchable history of all past exam events per student;
-- a per-session oral page with a note editor, syntax-highlighted source navigator
-  (with symbol search and Javadoc deep-links), dependency graph, Javadoc viewer,
-  and a Details tab for computed auxiliary files;
-- a schedule view with slot assignments, pace tracking, and actions (BCC email, giustifica, SIFA CSV export);
-- a teacher view displaying exam instruction documents (HTML files from a per-session zip archive) in a tabbed iframe layout;
-- a public-facing booking page (deployed to Netlify) listing admitted students with
-  pre-filled cal.com booking links.
+- a per-session oral page with a note editor, syntax-highlighted source
+  navigator (with symbol search and Javadoc deep-links), dependency graph,
+  Javadoc viewer, and a Details tab for computed auxiliary files;
+- a schedule view with slot assignments, pace tracking, and actions (BCC email,
+  giustifica, SIFA CSV export);
+- a teacher view displaying exam instruction documents (HTML files from a
+  per-session zip archive) in a tabbed iframe layout;
+- a public-facing booking page (deployed to Netlify) listing admitted students
+  with pre-filled cal.com booking links.
 
 > **Note:** This is preliminary software, developed for personal use during exam
 > sessions. Interfaces and data formats may change without notice.
@@ -53,7 +56,10 @@ username = "teacher@university.edu"
 session  = 1234
 ```
 
-Every key above is mandatory except `trivial_packages` and `titoli` — a missing key raises a clear error naming the section, key, and file. This includes pipeline-only sections (`uploads`, and the pipeline-specific `booking` keys): they must be filled in even if you never run `exam-pipeline`.
+Every key above is mandatory except `trivial_packages` and `titoli` — a missing
+key raises a clear error naming the section, key, and file. This includes
+pipeline-only sections (`uploads`, and the pipeline-specific `booking` keys):
+they must be filled in even if you never run `exam-pipeline`.
 
 Then create a `.env` file in the project root with at least:
 
@@ -63,21 +69,25 @@ export EXAMUI_CONFIG="$(pwd)/config.toml"
 export NETLIFY_SITE_ID=<site-id>
 ```
 
-`NETLIFY_AUTH_TOKEN` deliberately does *not* go here: it is an account credential rather
-than a project one, so it belongs in your environment — a shell profile, a secrets file
-read at login, or the variable store of whatever runs the deployment — rather than in a
-file inside the repository. `bin/publish` also sources `~/.bash_secrets` when that file
-exists, so it keeps working from cron and other non-login shells. Only `NETLIFY_SITE_ID`,
-which identifies this particular site, belongs in `.env`.
+`NETLIFY_AUTH_TOKEN` deliberately does *not* go here: it is an account
+credential rather than a project one, so it belongs in your environment — a
+shell profile, a secrets file read at login, or the variable store of whatever
+runs the deployment — rather than in a file inside the repository. `bin/publish`
+also sources `~/.bash_secrets` when that file exists, so it keeps working from
+cron and other non-login shells. Only `NETLIFY_SITE_ID`, which identifies this
+particular site, belongs in `.env`.
 
-`bin/` scripts source `.env` directly. If you use direnv, `.envrc` loads it automatically (`dotenv .env`) and also adds `bin/` to your `PATH` (`PATH_add bin`).
+`bin/` scripts source `.env` directly. If you use direnv, `.envrc` loads it
+automatically (`dotenv .env`) and also adds `bin/` to your `PATH`
+(`PATH_add bin`).
 
-Two additional env vars are available for development time simulation (not in the TOML):
+Two additional env vars are available for development time simulation (not in
+the TOML):
 
-| Variable | Format | Effect |
-|----------|--------|--------|
+| Variable | Format   | Effect                                                    |
+| -------- | -------- | --------------------------------------------------------- |
 | `TODAY`  | `YYMMDD` | Overrides the date used to select the active exam session |
-| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace` |
+| `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace`            |
 
 ## Usage
 
@@ -97,7 +107,8 @@ absolute path of `bin/server`:
 command="/path/to/bin/server",no-pty,no-agent-forwarding,no-X11-forwarding,permitopen="localhost:8765" ssh-ed25519 AAAA...
 ```
 
-Add the client-side variables to `.envrc` (or a separate `.envrc` on the tablet):
+Add the client-side variables to `.envrc` (or a separate `.envrc` on the
+tablet):
 
 ```shell
 EXAMUI_HOST=svm        # SSH host alias from ~/.ssh/config
@@ -117,8 +128,9 @@ browser, and tears everything down on Ctrl-C.
 ### `bin/publish` — deploy the public schedule page
 
 Fetches the generated public schedule page from the running app and deploys it
-to the Netlify site identified by `NETLIFY_SITE_ID` (from `.env`), authenticating with
-`NETLIFY_AUTH_TOKEN`, which must be exported in the environment. Requires the Netlify CLI.
+to the Netlify site identified by `NETLIFY_SITE_ID` (from `.env`),
+authenticating with `NETLIFY_AUTH_TOKEN`, which must be exported in the
+environment. Requires the Netlify CLI.
 
 ```bash
 ./bin/publish

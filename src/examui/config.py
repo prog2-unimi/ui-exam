@@ -15,11 +15,13 @@ TRIVIAL_PACKAGES_DEFAULT = ['client', 'clients', 'util', 'utils']
 
 TODAY = environ.get('TODAY', datetime.now().strftime('%y%m%d'))
 
+
 def now() -> datetime:
   override = environ.get('NOW')
   if override:
     return datetime.strptime(TODAY + override, '%y%m%d%H%M')
   return datetime.now()
+
 
 _config_path = environ['EXAMUI_CONFIG']
 
@@ -46,37 +48,37 @@ def _get(section: str, key: str, default_value=None):
 
 # base directories
 
-HISTORY_DIR      = Path(_get('paths', 'history_dir'))
-EVALS_DIR        = Path(_get('paths', 'evals_dir'))
-WORK_DIR         = Path(_get('paths', 'work_dir'))
-BACKUP_DIR       = Path(_get('paths', 'backup_dir'))
+HISTORY_DIR = Path(_get('paths', 'history_dir'))
+EVALS_DIR = Path(_get('paths', 'evals_dir'))
+WORK_DIR = Path(_get('paths', 'work_dir'))
+BACKUP_DIR = Path(_get('paths', 'backup_dir'))
 
 # derived directories
 
-STUDENT_BASE     = WORK_DIR / 'student'
-PROJECTS_DIR     = HISTORY_DIR / 'projects'
+STUDENT_BASE = WORK_DIR / 'student'
+PROJECTS_DIR = HISTORY_DIR / 'projects'
 
 # exam configuration
 
-SLOT_MINUTES     = _get('exam', 'slot_minutes')
-COURSE_NAME      = _get('exam', 'course_name')
-COURSE_DEGREE    = _get('exam', 'course_degree')
+SLOT_MINUTES = _get('exam', 'slot_minutes')
+COURSE_NAME = _get('exam', 'course_name')
+COURSE_DEGREE = _get('exam', 'course_degree')
 
-TEACHER_EMAIL    = _get('exam', 'teacher_email')
-TEACHER_NAME     = _get('exam', 'teacher_name')
-SUBJECT_PREFIX   = _get('exam', 'subject_prefix')
-EMAIL_DOMAIN     = _get('exam', 'email_domain')
+TEACHER_EMAIL = _get('exam', 'teacher_email')
+TEACHER_NAME = _get('exam', 'teacher_name')
+SUBJECT_PREFIX = _get('exam', 'subject_prefix')
+EMAIL_DOMAIN = _get('exam', 'email_domain')
 
-TITOLI           = _get('exam', 'titoli', TITOLI_DEFAULT)
+TITOLI = _get('exam', 'titoli', TITOLI_DEFAULT)
 TRIVIAL_PACKAGES = frozenset(_get('exam', 'trivial_packages', TRIVIAL_PACKAGES_DEFAULT))
 
 # external services
 
-VSCODE_TUNNEL    = _get('vscode', 'tunnel')
-CAL_URL          = _get('booking', 'cal_url')
-CAL_ENDPOINT     = _get('booking', 'endpoint')
-CAL_VERSION      = _get('booking', 'version')
-CAL_EVENT        = _get('booking', 'event')
-UPLOADS_URL      = _get('uploads', 'url')
+VSCODE_TUNNEL = _get('vscode', 'tunnel')
+CAL_URL = _get('booking', 'cal_url')
+CAL_ENDPOINT = _get('booking', 'endpoint')
+CAL_VERSION = _get('booking', 'version')
+CAL_EVENT = _get('booking', 'event')
+UPLOADS_URL = _get('uploads', 'url')
 UPLOADS_USERNAME = _get('uploads', 'username')
-UPLOADS_SESSION  = _get('uploads', 'session')
+UPLOADS_SESSION = _get('uploads', 'session')

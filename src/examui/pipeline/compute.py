@@ -97,15 +97,20 @@ def _run_javadoc(source_dir: Path, computed_dir: Path, javadoc_dir: Path) -> tup
 def _run_pygount(source_dir: Path, trivial_packages: frozenset[str]) -> dict:
   java_dir = source_dir / 'src' / 'main' / 'java'
   metrics = {
-    'sloc_code': 0, 'sloc_docs': 0, 'sloc_files': 0,
-    'slocc_code': 0, 'slocc_files': 0,
+    'sloc_code': 0,
+    'sloc_docs': 0,
+    'sloc_files': 0,
+    'slocc_code': 0,
+    'slocc_files': 0,
   }
 
   skip = ','.join(sorted(trivial_packages))
   try:
     result = subprocess.run(
       ['pygount', '-F', skip, '-f', 'json', str(java_dir)],
-      capture_output=True, text=True, timeout=60,
+      capture_output=True,
+      text=True,
+      timeout=60,
     )
     if result.returncode == 0:
       summary = json.loads(result.stdout).get('summary', {})
@@ -122,7 +127,9 @@ def _run_pygount(source_dir: Path, trivial_packages: frozenset[str]) -> dict:
     try:
       result = subprocess.run(
         ['pygount', '-f', 'json', str(pkg_dir)],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True,
+        text=True,
+        timeout=60,
       )
       if result.returncode == 0:
         summary = json.loads(result.stdout).get('summary', {})
@@ -259,8 +266,15 @@ def compute_all(
     with ThreadPoolExecutor(max_workers=workers) as pool:
       futures = {
         pool.submit(
-          _compute_one, email, student_base, work_dir, template_zip,
-          existing_hashes, force, trivial_packages, progress,
+          _compute_one,
+          email,
+          student_base,
+          work_dir,
+          template_zip,
+          existing_hashes,
+          force,
+          trivial_packages,
+          progress,
         ): email
         for email in sorted(students)
       }

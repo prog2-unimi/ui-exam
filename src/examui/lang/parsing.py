@@ -246,17 +246,23 @@ def _walk_uses(
     if typ:
       for r in _collect_type_refs(typ, src):
         uses['return'].add(_resolve(r, package, imports, scope_chain))
-    for r in _param_refs(node.child_by_field_name('parameters'), src, package, imports, scope_chain):
+    for r in _param_refs(
+      node.child_by_field_name('parameters'), src, package, imports, scope_chain
+    ):
       uses['parameter'].add(r)
     # fall through — recurse into body for local vars / new expressions
   elif t in ('constructor_declaration', 'compact_constructor_declaration'):
-    for r in _param_refs(node.child_by_field_name('parameters'), src, package, imports, scope_chain):
+    for r in _param_refs(
+      node.child_by_field_name('parameters'), src, package, imports, scope_chain
+    ):
       uses['parameter'].add(r)
     # fall through — recurse into body
   elif t == 'record_declaration':
     if node is not root:
       return  # nested type — handled by its own top-level _walk_uses call
-    for r in _param_refs(node.child_by_field_name('parameters'), src, package, imports, scope_chain):
+    for r in _param_refs(
+      node.child_by_field_name('parameters'), src, package, imports, scope_chain
+    ):
       uses['member'].add(r)
     _collect_inherits(node, src, package, imports, scope_chain, uses)
   elif t in ('class_declaration', 'interface_declaration', 'enum_declaration'):
@@ -312,8 +318,8 @@ def _collect_inherits(
 def _decl_kind(node, src: bytes) -> str:
   _KIND_MAP = {
     'interface_declaration': 'interface',
-    'enum_declaration':      'enum',
-    'record_declaration':    'record',
+    'enum_declaration': 'enum',
+    'record_declaration': 'record',
   }
   if node.type in _KIND_MAP:
     return _KIND_MAP[node.type]

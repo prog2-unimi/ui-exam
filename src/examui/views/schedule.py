@@ -38,10 +38,10 @@ def schedule():
 
   unmarked = [r for r in rows if not r['current_mark'] and r['slot']]
   current_email = unmarked[0]['email'] if unmarked else None
-  next_email    = unmarked[1]['email'] if len(unmarked) > 1 else None
+  next_email = unmarked[1]['email'] if len(unmarked) > 1 else None
   for r in rows:
     r['is_current'] = r['email'] == current_email
-    r['is_next']    = r['email'] == next_email
+    r['is_next'] = r['email'] == next_email
 
   slot_dates = sorted({r['slot'][:10] for r in rows if r['slot']})
 
@@ -60,8 +60,20 @@ def schedule():
 
 
 _GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
-_MESI   = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
-           'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+_MESI = [
+  'gennaio',
+  'febbraio',
+  'marzo',
+  'aprile',
+  'maggio',
+  'giugno',
+  'luglio',
+  'agosto',
+  'settembre',
+  'ottobre',
+  'novembre',
+  'dicembre',
+]
 
 
 def _fmt_slot(slot: datetime) -> str:
@@ -73,26 +85,37 @@ def public_schedule():
   if request.args.get('tba'):
     return render_template('public_schedule.html', course_name=config.COURSE_NAME, tba=True)
 
-  exam_dt  = datetime.strptime(exam_date(), '%y%m%d')
+  exam_dt = datetime.strptime(exam_date(), '%y%m%d')
   exam_fmt = f'{exam_dt.day} {_MESI[exam_dt.month - 1]} {exam_dt.year}'
-  mtime    = marks_mtime()
-  mtime_fmt = (f"{mtime.strftime('%d/%m/%Y')} alle ore {mtime.strftime('%H:%M')}"
-               if mtime else 'N/D')
+  mtime = marks_mtime()
+  mtime_fmt = f'{mtime.strftime("%d/%m/%Y")} alle ore {mtime.strftime("%H:%M")}' if mtime else 'N/D'
 
   rows = []
   for s in sorted(
-    (s for s in all_students().values() if s.events and isinstance(s.events[0], UnderEvaluationEvent)),
+    (
+      s
+      for s in all_students().values()
+      if s.events and isinstance(s.events[0], UnderEvaluationEvent)
+    ),
     key=lambda s: s.matricola,
   ):
     slot = s.events[0].metrics.slot
     cal_url = None
     if config.CAL_URL:
-      cal_url = config.CAL_URL + '?' + urlencode({
-        'name':      s.name,
-        'email':     f'{s.email}@{config.EMAIL_DOMAIN}',
-        'matricola': s.matricola,
-      })
-    rows.append({'matricola': s.matricola, 'slot': _fmt_slot(slot) if slot else None, 'cal_url': cal_url})
+      cal_url = (
+        config.CAL_URL
+        + '?'
+        + urlencode(
+          {
+            'name': s.name,
+            'email': f'{s.email}@{config.EMAIL_DOMAIN}',
+            'matricola': s.matricola,
+          }
+        )
+      )
+    rows.append(
+      {'matricola': s.matricola, 'slot': _fmt_slot(slot) if slot else None, 'cal_url': cal_url}
+    )
 
   booked = sum(1 for r in rows if r['slot'])
   return render_template(
@@ -111,7 +134,6 @@ def public_schedule():
 def pace():
   now = config.now()
   today = now.date()
-  slot_delta = timedelta(minutes=config.SLOT_MINUTES)
   with_slots = [
     s.events[0]
     for s in all_students().values()

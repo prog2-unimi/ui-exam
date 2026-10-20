@@ -670,3 +670,10 @@ Provisional marks in marks.tsv (`UnderEvaluationMark.provisional`) are free-form
 `Student.summary_mark` returns the most notable `Mark` from past verbale events: first `passato` if any, then first `rifiutato`, then first `respinto`/`ritirato`, else `None`.
 
 `renderMark(vm, cm)` in `common.js`: `vm` is `dataclasses.asdict(summary_mark)` (with `kind` and `value` keys) or `null`; `cm` is the provisional string or `undefined` (history context).
+
+## Configured with dhevmera
+
+This repository's Claude Code configuration — this file, `.claude/memory/`,
+`.claude/settings*.json` — is managed with dhevmera. Read
+`~/.claude/CLAUDE.md`, the global instructions, first; nothing here repeats
+it.

@@ -111,15 +111,13 @@ TODAY=260615 NOW=1145 ./bin/debug
 
 ### Remote access via SSH tunnel
 
-`./bin/server` is the `command=` entry in `~/.ssh/authorized_keys` on the exam
-host:
-
-```text
-command="/path/to/bin/server",no-pty,no-agent-forwarding,no-X11-forwarding,permitopen="localhost:8765" ssh-ed25519 AAAA...
-```
-
-It sources `.env` from the project root, starts gunicorn on `127.0.0.1:8765`,
-and kills it when the SSH connection closes. Logs to `/tmp/examui.log`.
+The server is started by `dhserve`, the forced command of the tablet's grant in
+dhevmera (`serve: {dir, entry: "examui:create_app()"}`, port 8765); the contract
+is `dhserve --help`. It sources `.env` from the project root, runs gunicorn on
+`127.0.0.1:8765` with one worker (overriding `gunicorn.conf.py`'s `bind` and
+`workers`), and stops it when the last browser window closes or the SSH
+connection does, so nothing may live in memory alone. Logs go to
+`~/.local/state/dhevmera/ui-exam.log`.
 
 `./bin/client` runs on the tablet (Termux). It sources `.env` from the project
 root for:

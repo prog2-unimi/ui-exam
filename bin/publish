@@ -4,7 +4,7 @@
 #
 # Runs a throwaway gunicorn instance on its own port so the published page
 # always reflects the latest data, even if the long-running tunnel server
-# (bin/server, port 8765) is stale or not running. Killed right after the
+# (dhserve, port 8765) is stale or not running. Killed right after the
 # schedule page is fetched.
 set -euo pipefail
 

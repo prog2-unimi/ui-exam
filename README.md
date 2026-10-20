@@ -100,12 +100,9 @@ The app listens on `127.0.0.1:8765`.
 
 ### Remote access from a tablet (Termux)
 
-Add the following to `~/.ssh/authorized_keys` on the exam host, pointing at the
-absolute path of `bin/server`:
-
-```
-command="/path/to/bin/server",no-pty,no-agent-forwarding,no-X11-forwarding,permitopen="localhost:8765" ssh-ed25519 AAAA...
-```
+On the exam host, the tablet's key is granted `dhserve` as its forced command,
+serving `examui:create_app()` from this directory on port 8765 (see
+`dhserve --help`).
 
 Add the client-side variables to `.envrc` (or a separate `.envrc` on the
 tablet):

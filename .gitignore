@@ -3,7 +3,6 @@ __pycache__/
 .coverage
 .env
 .envrc
-.gunicorn.pid
 .netlify
 .venv/
 *.egg-info/

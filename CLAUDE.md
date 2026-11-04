@@ -109,18 +109,21 @@ real data:
 TODAY=260615 NOW=1145 ./bin/debug
 ```
 
-### Remote access via SSH tunnel
+### Remote access from the tablet or phone
 
-The server is started by `dhserve`, the forced command of the tablet's grant in
-dhevmera (`serve: {dir, entry: "examui:create_app()"}`, port 8765); the contract
-is `dhserve --help`. It sources `.env` from the project root, runs gunicorn on
-`127.0.0.1:8765` with one worker (overriding `gunicorn.conf.py`'s `bind` and
-`workers`), and stops it when the last browser window closes or the SSH
-connection does, so nothing may live in memory alone. Logs go to
-`~/.local/state/dhevmera/ui-exam.log`.
+svm serves the app on the tailnet at
+`https://santinivm.robin-diatonic.ts.net:8765/` through `tailscale serve`. A
+systemd socket (`dhapp@8765.socket`, `127.0.0.1:8765`) starts
+`dhapp@8765.service` on the first connection, which runs `dhserve 8765`:
+`uv sync` here, `.env` sourced, then gunicorn on `examui:create_app()` with one
+worker (overriding `gunicorn.conf.py`'s `bind` and `workers`). The heartbeat
+stops it shortly after the last window closes, so nothing may live in memory
+alone; its path prefix `/__dhserve/` is reserved, and `dhserve --help` is the
+contract. Logs go to `~/.local/state/dhevmera/ui-exam.log` on svm.
 
-The tablet opens the app with `dhtunnel` (tunnel and browser); the repository
-carries no client script. `bin/giustifica` still reads `EXAMUI_PORT`.
+The tablet opens the app with `dhremote app examui` (`--on phone` for the phone)
+or its `examui` shortcut, in a Chrome Custom Tab; the repository carries no
+client script. `bin/giustifica` still reads `EXAMUI_PORT`.
 
 Single-worker gunicorn is a hard requirement (in-process `@cache`).
 

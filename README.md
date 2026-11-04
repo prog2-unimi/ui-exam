@@ -98,12 +98,13 @@ direnv allow   # or: source .envrc
 
 The app listens on `127.0.0.1:8765`.
 
-### Remote access from a tablet (Termux)
+### Remote access from the tablet or phone
 
-On the exam host, the tablet's key is granted `dhserve` as its forced command,
-serving `examui:create_app()` from this directory on port 8765 (see
-`dhserve --help`). On the tablet, open the app with `dhtunnel`, which opens the
-SSH tunnel and shows the app in the browser.
+svm serves the app on the tailnet at
+`https://santinivm.robin-diatonic.ts.net:8765/`, starting it on the first
+connection and stopping it shortly after the last window closes (see
+`dhserve --help`). Open it with `dhremote app examui` (the tablet by default,
+`--on phone` for the phone), or the tablet's `examui` shortcut.
 
 ### `bin/publish` — deploy the public schedule page
 

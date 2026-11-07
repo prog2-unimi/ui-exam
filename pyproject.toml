@@ -5,7 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "examui"
 version = "0.1.0"
-description = "Oral exam assistant web UI"
+description = "Oral exam assistant web UI for Programmazione II"
 requires-python = ">=3.11"
 dependencies = [
     "flask",

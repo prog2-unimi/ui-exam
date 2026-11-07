@@ -1,4 +1,4 @@
-# examui
+# ui-exam
 
 A Flask web application for assisting oral exam sessions in the
 [Programmazione II](https://prog2.di.unimi.it) course at Università degli Studi

@@ -1,4 +1,7 @@
-# examui — developer notes
+# ui-exam — developer notes
+
+The Python package, imported and run as `examui`, is the app; `ui-exam` is its
+name everywhere a person sees one.
 
 ## Purpose
 

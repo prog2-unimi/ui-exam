@@ -1,6 +1,6 @@
 {
-  "name": "Esame Programmazione II",
-  "short_name": "p2e",
+  "name": "ui-exam",
+  "short_name": "ui-exam",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

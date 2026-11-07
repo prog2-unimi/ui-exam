@@ -102,9 +102,9 @@ The app listens on `127.0.0.1:8765`.
 ### Remote access from the tablet or phone
 
 svm serves the app on the tailnet at `https://ui-exam.robin-diatonic.ts.net`,
-started by hand with `dhapp start ui-exam` before an exam and stopped after.
-Open it with `dhremote app examui` (the tablet by default, `--on phone` for the
-phone), or the tablet's `examui` shortcut.
+started by hand with `systemctl --user start ui-exam` before an exam and stopped
+after (`stop`). On the tablet it is a home-screen icon in Chrome; a session
+opens it there with `dhremote url https://ui-exam.robin-diatonic.ts.net/`.
 
 ### `bin/publish` — deploy the public schedule page
 

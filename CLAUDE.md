@@ -119,8 +119,10 @@ TODAY=260615 NOW=1145 ./bin/debug
 ### Remote access from the tablet or phone
 
 svm runs the app as a dhevmera host app, `ui-exam.service`, started by hand
-(`dhapp start ui-exam` before an exam, stopped after) and reached on the tailnet
-at `https://ui-exam.robin-diatonic.ts.net`. The unit runs here
+(`systemctl --user start ui-exam` before an exam, `stop` after) and reached on
+the tailnet at `https://ui-exam.robin-diatonic.ts.net`, a home-screen icon in
+Chrome on the tablet, opened by a session with `dhremote url <address>`. The
+unit runs here
 `.venv/bin/gunicorn -c gunicorn.conf.py --bind 127.0.0.1:8765 examui:create_app()`
 (the command line overrides `gunicorn.conf.py`'s `bind`); it runs until stopped.
 `dhapp show ui-exam` gives the entry and `~/.claude/apps.md` the contract. Logs

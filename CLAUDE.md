@@ -122,14 +122,15 @@ TODAY=260615 NOW=1145 ./bin/debug
 ### Remote access from the tablet or phone
 
 svm runs the app as a dhevmera host app, `ui-exam.service`, started by hand
-(`systemctl --user start ui-exam` before an exam, `stop` after) and reached on
-the tailnet at `https://ui-exam.robin-diatonic.ts.net`, a home-screen icon in
+(`dhapp start ui-exam` before an exam, `dhapp stop ui-exam` after) and reached
+on the tailnet at `https://ui-exam.robin-diatonic.ts.net`, a home-screen icon in
 Chrome on the tablet, opened by a session with `dhremote url <address>`. The
 unit runs here
 `.venv/bin/gunicorn -c gunicorn.conf.py --bind 127.0.0.1:8765 uiexam:create_app()`
 (the command line overrides `gunicorn.conf.py`'s `bind`); it runs until stopped.
-`dhapp show ui-exam` gives the entry and `~/.claude/apps.md` the contract. Logs
-are the journal (`journalctl --user -u ui-exam`).
+`dhapp show ui-exam` gives the entry and `~/.claude/apps.md` the contract. After
+a change, `dhapp deploy ui-exam` then `dhapp restart ui-exam`. Logs are
+`dhapp logs ui-exam` (its last run; `-n N` across runs, `-f` to follow).
 
 The app's home, `APP_HOME` (`/chome/santini/AppsData/ui-exam`, backed up
 nightly), holds `po/` (the work directory) and links `history`, `evals` and
@@ -1264,3 +1265,8 @@ everything with `uv run pre-commit run --all-files`.
 This repository's Claude Code configuration — this file, `.claude/memory/`,
 `.claude/settings*.json` — is managed with dhevmera. Read `~/.claude/CLAUDE.md`,
 the global instructions, first; nothing here repeats it.
+
+The lines below import the aims this repository's work belongs to, from
+dhevmera's `files/claude/dirs/aims/`:
+
+@~/.claude/aims/teaching.md

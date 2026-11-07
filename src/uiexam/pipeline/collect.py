@@ -43,7 +43,7 @@ def load_history(
   history_dir: Path,
   course_name: str,
 ) -> int:
-  mat2email, email2mat, names, enrollments = read_enrollments(history_dir)
+  mat2email, email2mat, _names, enrollments = read_enrollments(history_dir)
   verbali_rows = read_verbali(history_dir, course_name)
   enrolled = enrolled_emails(history_dir, exam_date)
 

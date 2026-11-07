@@ -91,6 +91,7 @@ def extract_source(email: str, consegna: Path, template_zip: Path, source_dir: P
     cwd=source_dir,
     capture_output=True,
     timeout=120,
+    check=False,
   )
 
   return source_dir

@@ -9,7 +9,6 @@ from uiexam.lang.graph import (
   transitive_reduction,
 )
 
-
 # ── is_trivial_package ────────────────────────────────────────────────────────
 
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -21,7 +21,7 @@ _log = logging.getLogger(__name__)
 def _date_l2s(utc: str) -> str:
   return (
     datetime.strptime(utc, '%Y-%m-%dT%H:%M:%S.%fZ')
-    .replace(tzinfo=timezone.utc)
+    .replace(tzinfo=UTC)
     .astimezone(tz=None)
     .strftime('%y%m%d-%H%M')
   )
@@ -30,7 +30,7 @@ def _date_l2s(utc: str) -> str:
 def _date_s2l(short: str) -> str:
   return (
     datetime.strptime(short, '%y%m%d')
-    .replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+    .replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=UTC)
     .strftime('%Y-%m-%dT%H:%M:%S.000Z')
   )
 

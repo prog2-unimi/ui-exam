@@ -51,6 +51,7 @@ def _run_tests(source_dir: Path, computed_dir: Path) -> str:
       capture_output=True,
       text=True,
       timeout=300,
+      check=False,
     )
     stdout = result.stdout
   except subprocess.TimeoutExpired:
@@ -73,6 +74,7 @@ def _run_javadoc(source_dir: Path, computed_dir: Path, javadoc_dir: Path) -> tup
       capture_output=True,
       text=True,
       timeout=300,
+      check=False,
     )
     output = result.stdout + '\n' + result.stderr
   except subprocess.TimeoutExpired:
@@ -111,6 +113,7 @@ def _run_pygount(source_dir: Path, trivial_packages: frozenset[str]) -> dict:
       capture_output=True,
       text=True,
       timeout=60,
+      check=False,
     )
     if result.returncode == 0:
       summary = json.loads(result.stdout).get('summary', {})
@@ -130,6 +133,7 @@ def _run_pygount(source_dir: Path, trivial_packages: frozenset[str]) -> dict:
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
       )
       if result.returncode == 0:
         summary = json.loads(result.stdout).get('summary', {})
@@ -282,7 +286,7 @@ def compute_all(
         email = futures[future]
         try:
           _, metrics = future.result()
-        except Exception:
+        except Exception:  # noqa: BLE001 - one student's failure must not stop the run
           _log.exception('Unexpected error computing %s', email)
           error_count += 1
           progress.console.print(f'  [red]✗[/red] {email} — ERROR')

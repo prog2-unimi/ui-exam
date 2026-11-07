@@ -5,7 +5,8 @@ import dataclasses
 from datetime import datetime
 
 from flask import Blueprint, render_template
-from uiexam.models.store import all_students, exam_date, UnderEvaluationEvent
+
+from uiexam.models.store import UnderEvaluationEvent, all_students, exam_date
 
 bp = Blueprint('history', __name__, url_prefix='')
 

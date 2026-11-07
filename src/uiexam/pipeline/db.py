@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 _SCHEMA = """\
 CREATE TABLE IF NOT EXISTS uploads (
@@ -64,7 +64,7 @@ def connect(db_path: Path) -> Generator[sqlite3.Connection, None, None]:
 
 
 def clear_table(conn: sqlite3.Connection, table: str) -> None:
-  conn.execute(f'DELETE FROM {table}')  # noqa: S608 — table name is internal
+  conn.execute(f'DELETE FROM {table}')  # table name is internal
 
 
 def upsert_upload(conn: sqlite3.Connection, email: str, upload_date: str, upload_id: int) -> None:
@@ -140,7 +140,7 @@ def get_computed_hash(conn: sqlite3.Connection, email: str) -> str | None:
 
 
 def _rows(conn: sqlite3.Connection, table: str) -> list[dict]:
-  return [dict(r) for r in conn.execute(f'SELECT * FROM {table}').fetchall()]  # noqa: S608
+  return [dict(r) for r in conn.execute(f'SELECT * FROM {table}').fetchall()]
 
 
 def all_uploads(conn: sqlite3.Connection) -> list[dict]:

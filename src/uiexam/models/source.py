@@ -64,7 +64,7 @@ def all_symbols(email: str) -> list[dict]:
       text = f.read_text(errors='replace')
       for sym in parsing.symbols(text):
         result.append({'file': rel, **sym})
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 - a file that cannot be parsed is left out
       pass
   return result
 
@@ -112,8 +112,7 @@ def _split_html_lines(html: str) -> list[str]:
   if not pre:
     return []
   content = pre.group(1)
-  if content.endswith('\n'):
-    content = content[:-1]
+  content = content.removesuffix('\n')
 
   result: list[str] = []
   open_spans: list[str] = []
@@ -162,7 +161,7 @@ def _trivial_rel_paths(root: Path) -> set[str]:
         fqns.append(rec['fqn'])
       if fqns:
         file_fqns[rel] = fqns
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 - a file that cannot be parsed is left out
       pass
   _graph.close_trivial(parsed)
   return {rel for rel, fqns in file_fqns.items() if all(parsed[fqn]['trivial'] for fqn in fqns)}

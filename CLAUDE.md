@@ -737,6 +737,14 @@ buttons + Active timer button) is in the shared `base.html` header block —
 shown only when `has_teacher` is true (injected via a context processor when
 `config.PROJECTS_DIR` is set).
 
+The head links the web manifest and the icon (a mortarboard, `static/icons/`:
+`icon.svg` is the source, the three PNGs, 192 and 512 px plus a maskable 512,
+are its renders), so Chrome can install the app on the tablet. The manifest,
+`static/manifest.webmanifest`, is served by the `/manifest.webmanifest` route in
+`create_app()` so its scope is `/` (a file under `/static/` would scope it
+there). The standalone pages (`giustifica.html`, `public_schedule.html`) do not
+link them.
+
 Navbar also contains `#wall-clock` (current time, `HH:MM`, updated every second
 by `common.js`) and `#pace-badge` (ahead/behind indicator, polling `/api/pace`
 every 60 s). Both are visible on every page. `#pace-badge` is hidden when no

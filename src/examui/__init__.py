@@ -3,7 +3,7 @@
 
 import logging
 
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, send_from_directory, url_for
 
 _log = logging.getLogger(__name__)
 
@@ -40,6 +40,13 @@ def create_app():
   @app.get('/')
   def index():
     return redirect(url_for('schedule.schedule'))
+
+  @app.get('/manifest.webmanifest')
+  def manifest():
+    # served from the root so its scope covers the whole app (a file under /static/ would not)
+    return send_from_directory(
+      app.static_folder, 'manifest.webmanifest', mimetype='application/manifest+json'
+    )
 
   from pathlib import Path
   from examui.models.store import all_students, UnderEvaluationEvent

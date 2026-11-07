@@ -30,7 +30,7 @@ exam-pipeline = "uiexam.pipeline:cli"
 
 [dependency-groups]
 dev = [
-    "ruff",
+    "ruff>=0.16",
     "pytest",
     "pytest-cov>=7.1.0",
     "pre-commit>=4.7.0",
@@ -40,13 +40,14 @@ dev = [
     "google-yamlfmt>=0.21.0",
     "pre-commit-hooks>=6.0.0",
     "shfmt-py>=4.2.0",
+    "taplo>=0.9.3",
 ]
 
 [tool.ruff]
-line-length     = 100
-indent-width    = 2
-extend-include  = ["bin/moss"]
+line-length = 100
+indent-width = 2
+extend-include = ["bin/moss"]
 
 [tool.ruff.format]
-indent-style  = "space"
-quote-style   = "single"
+indent-style = "space"
+quote-style = "single"

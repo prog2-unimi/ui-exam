@@ -1,3 +1,4 @@
+# setup-formatting 2026-11-07: rules 2
 repos:
   - repo: local
     hooks:
@@ -10,23 +11,23 @@ repos:
         exclude: ^\.claude/memory/
       - id: ruff-check
         name: ruff check
-        entry: uv run --frozen ruff check --fix
+        entry: uv run --frozen ruff check --fix --force-exclude
         language: system
         types_or: [python, jupyter]
       - id: ruff-format
         name: ruff format
-        entry: uv run --frozen ruff format
+        entry: uv run --frozen ruff format --force-exclude
         language: system
-        types_or: [python, jupyter]
+        types_or: [python, jupyter, markdown]
       # pre-commit does not tag bin/moss (shebang `env -S uv run`) as python
       - id: ruff-check-moss
         name: ruff check (bin/moss)
-        entry: uv run --frozen ruff check --fix
+        entry: uv run --frozen ruff check --fix --force-exclude
         language: system
         files: ^bin/moss$
       - id: ruff-format-moss
         name: ruff format (bin/moss)
-        entry: uv run --frozen ruff format
+        entry: uv run --frozen ruff format --force-exclude
         language: system
         files: ^bin/moss$
       - id: trailing-whitespace
@@ -50,6 +51,19 @@ repos:
         entry: uv run --frozen shfmt -w -i 2 -ci -bn -ln bash
         language: system
         types: [shell]
+      - id: taplo
+        name: taplo
+        entry: uv run --frozen taplo fmt -o "indent_string=    " -o array_auto_collapse=false
+        language: system
+        types: [toml]
+        exclude: \.lock$
+      # look like the keyboard's "-" but are not: the instructions' Always section
+      - id: keyboard-dashes
+        name: no U+2013 EN DASH or U+2212 MINUS SIGN
+        # pygrep matches bytes: each character's whole UTF-8 sequence, or U+2014 matches
+        entry: '\xe2\x80\x93|\xe2\x88\x92'
+        language: pygrep
+        types: [text]
       - id: prettier
         name: prettier
         entry: prettier --write

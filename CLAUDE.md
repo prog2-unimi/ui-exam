@@ -128,7 +128,8 @@ Formatters are pinned in the `dev` group and run by pre-commit; after cloning,
 `uv sync` then `uv run pre-commit install`; format everything with
 `uv run pre-commit run --all-files`. Not formatted: the Jinja templates
 (Prettier does not understand `{% %}`) and `static/pygments.css`, which
-`create_app()` rewrites at every startup.
+`create_app()` rewrites at every startup. TOML goes through taplo (never
+`uv.lock`).
 
 ______________________________________________________________________
 

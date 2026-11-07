@@ -7,18 +7,23 @@ each student's exam history, lets the examiner take notes and record a
 provisional mark, and displays the student's submitted Java source code (with
 syntax highlighting, symbol navigation, dependency graph, and Javadoc).
 
+Runs as a dhevmera host app: @~/.claude/apps.md
+
 ## Configuration
 
-All stable configuration lives in a TOML file pointed to by the `EXAMUI_CONFIG`
-env var (set in `.env`). Copy `config.toml.example` to `config.toml` and fill in
-your values:
+All stable configuration lives in a TOML file: `config.toml` in the checkout, or
+the one `EXAMUI_CONFIG` names (the unit sets neither `.env` nor that variable).
+Copy `config.toml.example` to `config.toml` and fill in your values. Values
+under `[paths]` may name environment variables (`${APP_HOME}`), which must be
+set (`ConfigError` otherwise): `APP_HOME` is the app's home, given by the unit
+and exported by `.env` for hand-run tools.
 
 ```toml
 [paths]
-history_dir  = "/path/to/exams/history"
-evals_dir    = "/path/to/exams/evals"
-work_dir     = "/path/to/work/dir"               # ephemeral directory for pipeline artifacts
-backup_dir   = "/path/to/exams/backup"           # archived raw submissions from past sessions (for the diff tool)
+history_dir  = "${APP_HOME}/history"
+evals_dir    = "${APP_HOME}/evals"
+work_dir     = "${APP_HOME}/po"                  # ephemeral directory for pipeline artifacts
+backup_dir   = "${APP_HOME}/backup"              # archived raw submissions from past sessions (for the diff tool)
 
 [exam]
 slot_minutes     = 30
@@ -80,12 +85,15 @@ simulation overrides:
 | `TODAY`  | `YYMMDD` | Overrides the date used to select the active exam session |
 | `NOW`    | `HHMM`   | Overrides the current time used by `/api/pace`            |
 
-Pipeline-only env vars (secrets, not in TOML):
+Secrets (not in TOML) are `KEY=value` lines of `~/.config/ui-exam/ui-exam.env`,
+loaded by `.envrc` (`dotenv`) for the hand-run tools; the Flask app itself uses
+none:
 
 | Variable           | Used by          | Meaning                      |
 | ------------------ | ---------------- | ---------------------------- |
 | `UPLOADS_PASSWORD` | `fetch-uploads`  | Password for the uploads API |
 | `CALCOM_KEY`       | `fetch-calendar` | cal.com API bearer token     |
+| `MOSS_USERID`      | `bin/moss`       | MOSS account id              |
 
 ## Running
 
@@ -96,10 +104,9 @@ source .env   # or: direnv allow
 ./bin/debug
 ```
 
-Runs gunicorn with `--workers=1 --reload`. `.env` must export `EXAMUI_CONFIG`
-pointing at a populated `config.toml`. `TODAY` defaults to today's date
-(`YYMMDD`); override to pin which day's oral slots are shown in the schedule
-view.
+Runs gunicorn with `--workers=1 --reload`. `.env` must export `APP_HOME` and
+`config.toml` be populated. `TODAY` defaults to today's date (`YYMMDD`);
+override to pin which day's oral slots are shown in the schedule view.
 
 `NOW` (`HHMM`) overrides the current time used by `/api/pace`. Combined with
 `TODAY` this lets you simulate any point during the exam day without touching
@@ -111,19 +118,18 @@ TODAY=260615 NOW=1145 ./bin/debug
 
 ### Remote access from the tablet or phone
 
-svm serves the app on the tailnet at
-`https://santinivm.robin-diatonic.ts.net:8765/` through `tailscale serve`. A
-systemd socket (`dhapp@8765.socket`, `127.0.0.1:8765`) starts
-`dhapp@8765.service` on the first connection, which runs `dhserve 8765`:
-`uv sync` here, `.env` sourced, then gunicorn on `examui:create_app()` with one
-worker (overriding `gunicorn.conf.py`'s `bind` and `workers`). The heartbeat
-stops it shortly after the last window closes, so nothing may live in memory
-alone; its path prefix `/__dhserve/` is reserved, and `dhserve --help` is the
-contract. Logs go to `~/.local/state/dhevmera/ui-exam.log` on svm.
+svm runs the app as a dhevmera host app, `ui-exam.service`, started by hand
+(`dhapp start ui-exam` before an exam, stopped after) and reached on the tailnet
+at `https://ui-exam.robin-diatonic.ts.net`. The unit runs here
+`.venv/bin/gunicorn -c gunicorn.conf.py --bind 127.0.0.1:8765 examui:create_app()`
+(the command line overrides `gunicorn.conf.py`'s `bind`); it runs until stopped.
+`dhapp show ui-exam` gives the entry and `~/.claude/apps.md` the contract. Logs
+are the journal (`journalctl --user -u ui-exam`).
 
-The tablet opens the app with `dhremote app examui` (`--on phone` for the phone)
-or its `examui` shortcut, in a Chrome Custom Tab; the repository carries no
-client script. `bin/giustifica` still reads `EXAMUI_PORT`.
+The app's home, `APP_HOME` (`/chome/santini/AppsData/ui-exam`, backed up
+nightly), holds `po/` (the work directory) and links `history`, `evals` and
+`backup` to the course's directories; `config.toml` names them through
+`${APP_HOME}`. `bin/giustifica` still reads `EXAMUI_PORT`.
 
 Single-worker gunicorn is a hard requirement (in-process `@cache`).
 
@@ -167,10 +173,10 @@ pattern of the other `bin/` scripts:
 ```
 
 Requires `MOSS_USERID` env var — a personal MOSS account secret, unrelated to
-the `exam-pipeline` CLI, set in `.env` alongside the other secrets. Unlike the
-bash `bin/` scripts, `bin/moss` does not `source .env` itself, so the variable
-must already be in the shell's environment (e.g. via `direnv allow`, which loads
-`.env` automatically). Walks `<students_dir>/<student>/source/src/main/java`,
+the `exam-pipeline` CLI, kept with the other secrets (see Configuration). Unlike
+the bash `bin/` scripts, `bin/moss` does not `source .env` itself, so the
+variable must already be in the shell's environment (e.g. via `direnv allow`,
+which loads `.envrc`). Walks `<students_dir>/<student>/source/src/main/java`,
 skips empty files and top-level package dirs in `--exclude` (default
 `clients util`), uploads via `mosspy` with a `rich` progress bar, and prints the
 MOSS results URL. `--filter` restricts which students are processed (regex
@@ -1050,7 +1056,7 @@ exam-pipeline run [-w N]                      # chain all five steps above
 exam-pipeline status                          # show counts per table
 ```
 
-All commands require `EXAMUI_CONFIG` to be set. `fetch-uploads` requires
+All commands require `APP_HOME` to be set (`.env`). `fetch-uploads` requires
 `UPLOADS_PASSWORD`, `fetch-calendar` requires `CALCOM_KEY`. `bin/pipeline` is a
 thin wrapper (`exec uv run exam-pipeline "$@"`); since `.envrc` does
 `PATH_add bin`, direnv users can run `pipeline <command>` directly instead of

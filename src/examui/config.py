@@ -4,6 +4,7 @@
 import tomllib
 from datetime import datetime
 from os import environ
+from os.path import expandvars
 from pathlib import Path
 
 # defaults
@@ -23,7 +24,11 @@ def now() -> datetime:
   return datetime.now()
 
 
-_config_path = environ['EXAMUI_CONFIG']
+# the config file: EXAMUI_CONFIG if set, else config.toml in the checkout
+
+_config_path = environ.get('EXAMUI_CONFIG') or str(
+  Path(__file__).resolve().parents[2] / 'config.toml'
+)
 
 with open(_config_path, 'rb') as _f:
   _cfg = tomllib.load(_f)
@@ -31,6 +36,14 @@ with open(_config_path, 'rb') as _f:
 
 class ConfigError(Exception):
   pass
+
+
+def _path(key: str) -> Path:
+  # path values may name environment variables (e.g. "${APP_HOME}/po"), which must be set
+  value = expandvars(_get('paths', key))
+  if '$' in value:
+    raise ConfigError(f'Unset environment variable in "{key}" = {value!r} of {_config_path}')
+  return Path(value)
 
 
 def _get(section: str, key: str, default_value=None):
@@ -48,10 +61,10 @@ def _get(section: str, key: str, default_value=None):
 
 # base directories
 
-HISTORY_DIR = Path(_get('paths', 'history_dir'))
-EVALS_DIR = Path(_get('paths', 'evals_dir'))
-WORK_DIR = Path(_get('paths', 'work_dir'))
-BACKUP_DIR = Path(_get('paths', 'backup_dir'))
+HISTORY_DIR = _path('history_dir')
+EVALS_DIR = _path('evals_dir')
+WORK_DIR = _path('work_dir')
+BACKUP_DIR = _path('backup_dir')
 
 # derived directories
 

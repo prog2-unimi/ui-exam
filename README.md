@@ -26,7 +26,7 @@ Copy `config.toml.example` to `config.toml` and fill in your values:
 
 ```toml
 [paths]
-history_dir  = "/path/to/exams/history"
+history_dir  = "/path/to/exams/history"   # values may name environment variables, e.g. "${APP_HOME}/history"
 evals_dir    = "/path/to/exams/evals"
 work_dir     = "/path/to/work/dir"        # ephemeral directory for pipeline artifacts
 
@@ -61,10 +61,11 @@ key raises a clear error naming the section, key, and file. This includes
 pipeline-only sections (`uploads`, and the pipeline-specific `booking` keys):
 they must be filled in even if you never run `exam-pipeline`.
 
-Then create a `.env` file in the project root with at least:
+The app reads `config.toml` in the project root, or the file `EXAMUI_CONFIG`
+names. Then create a `.env` file in the project root with at least:
 
 ```shell
-export EXAMUI_CONFIG="$(pwd)/config.toml"
+export EXAMUI_CONFIG="$(pwd)/config.toml"   # optional: the default is the same
 # Required for bin/publish (Netlify deployment):
 export NETLIFY_SITE_ID=<site-id>
 ```
@@ -100,11 +101,10 @@ The app listens on `127.0.0.1:8765`.
 
 ### Remote access from the tablet or phone
 
-svm serves the app on the tailnet at
-`https://santinivm.robin-diatonic.ts.net:8765/`, starting it on the first
-connection and stopping it shortly after the last window closes (see
-`dhserve --help`). Open it with `dhremote app examui` (the tablet by default,
-`--on phone` for the phone), or the tablet's `examui` shortcut.
+svm serves the app on the tailnet at `https://ui-exam.robin-diatonic.ts.net`,
+started by hand with `dhapp start ui-exam` before an exam and stopped after.
+Open it with `dhremote app examui` (the tablet by default, `--on phone` for the
+phone), or the tablet's `examui` shortcut.
 
 ### `bin/publish` — deploy the public schedule page
 

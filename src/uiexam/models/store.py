@@ -9,9 +9,9 @@ from zipfile import ZipFile
 
 import pandas as pd
 
-from examui import config
-from examui.data.history import read_enrollments, read_verbali
-from examui.models.events import ExamEvent, Mark, Metrics, Student
+from uiexam import config
+from uiexam.data.history import read_enrollments, read_verbali
+from uiexam.models.events import ExamEvent, Mark, Metrics, Student
 
 
 class UnderEvaluationMark:

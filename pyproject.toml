@@ -3,7 +3,7 @@ requires = ["uv_build>=0.11.14,<0.12.0"]
 build-backend = "uv_build"
 
 [project]
-name = "examui"
+name = "uiexam"
 version = "0.1.0"
 description = "Oral exam assistant web UI for Programmazione II"
 requires-python = ">=3.11"
@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.scripts]
-exam-pipeline = "examui.pipeline:cli"
+exam-pipeline = "uiexam.pipeline:cli"
 
 [dependency-groups]
 dev = [

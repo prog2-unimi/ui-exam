@@ -61,11 +61,11 @@ key raises a clear error naming the section, key, and file. This includes
 pipeline-only sections (`uploads`, and the pipeline-specific `booking` keys):
 they must be filled in even if you never run `exam-pipeline`.
 
-The app reads `config.toml` in the project root, or the file `EXAMUI_CONFIG`
+The app reads `config.toml` in the project root, or the file `UIEXAM_CONFIG`
 names. Then create a `.env` file in the project root with at least:
 
 ```shell
-export EXAMUI_CONFIG="$(pwd)/config.toml"   # optional: the default is the same
+export UIEXAM_CONFIG="$(pwd)/config.toml"   # optional: the default is the same
 # Required for bin/publish (Netlify deployment):
 export NETLIFY_SITE_ID=<site-id>
 ```

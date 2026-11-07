@@ -9,8 +9,8 @@ import os
 import click
 from rich.console import Console
 
-from examui import config
-from examui.pipeline import db
+from uiexam import config
+from uiexam.pipeline import db
 
 
 def _exam_date() -> str:
@@ -24,7 +24,7 @@ def _exam_date() -> str:
 @click.option('--verbose', '-v', is_flag=True, help='Enable debug logging')
 @click.pass_context
 def cli(ctx, verbose):
-  """Exam data pipeline for examui."""
+  """Exam data pipeline for uiexam."""
   logging.basicConfig(
     level=logging.DEBUG if verbose else logging.INFO,
     format='%(levelname)s %(name)s %(message)s',
@@ -40,7 +40,7 @@ def cli(ctx, verbose):
 @click.pass_context
 def fetch_uploads_cmd(ctx):
   """Download student submissions from the uploads API."""
-  from examui.pipeline.fetch import fetch_uploads
+  from uiexam.pipeline.fetch import fetch_uploads
 
   password = os.environ.get('UPLOADS_PASSWORD')
   if not password:
@@ -62,7 +62,7 @@ def fetch_uploads_cmd(ctx):
 @click.pass_context
 def fetch_calendar_cmd(ctx):
   """Download calendar bookings from cal.com."""
-  from examui.pipeline.fetch import fetch_calendar
+  from uiexam.pipeline.fetch import fetch_calendar
 
   calcom_key = os.environ.get('CALCOM_KEY')
   if not calcom_key:
@@ -71,7 +71,7 @@ def fetch_calendar_cmd(ctx):
   with db.connect(ctx.obj['db_path']) as conn:
     history_emails = [r['email'] for r in db.all_history(conn)]
     if not history_emails:
-      from examui.data.history import enrolled_emails
+      from uiexam.data.history import enrolled_emails
 
       history_emails = list(enrolled_emails(config.HISTORY_DIR, ctx.obj['exam_date']))
 
@@ -91,7 +91,7 @@ def fetch_calendar_cmd(ctx):
 @click.pass_context
 def load_history_cmd(ctx):
   """Load enrollment and exam history from XLS files."""
-  from examui.pipeline.collect import load_history
+  from uiexam.pipeline.collect import load_history
 
   with db.connect(ctx.obj['db_path']) as conn:
     count = load_history(conn, ctx.obj['exam_date'], config.HISTORY_DIR, config.COURSE_NAME)
@@ -105,7 +105,7 @@ def load_history_cmd(ctx):
 @click.pass_context
 def compute_cmd(ctx, student, force, workers):
   """Run gradle tests, javadoc, and pygount for each student."""
-  from examui.pipeline.compute import compute_all
+  from uiexam.pipeline.compute import compute_all
 
   if workers is None:
     workers = os.cpu_count() or 4
@@ -129,7 +129,7 @@ def compute_cmd(ctx, student, force, workers):
 @click.pass_context
 def collect_cmd(ctx):
   """Assemble marks.tsv and noshow.csv from DB data and history."""
-  from examui.pipeline.collect import collect_marks, write_noshow
+  from uiexam.pipeline.collect import collect_marks, write_noshow
 
   exam_date = ctx.obj['exam_date']
   with db.connect(ctx.obj['db_path']) as conn:

@@ -7,9 +7,9 @@ import re
 from functools import cache
 from pathlib import Path
 
-from examui import config
-from examui.data import diff as _diff
-from examui.models import source as _source
+from uiexam import config
+from uiexam.data import diff as _diff
+from uiexam.models import source as _source
 
 _OLD_DATE_RE = re.compile(r'^\d{6}$')
 

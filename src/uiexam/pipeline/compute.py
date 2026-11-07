@@ -22,7 +22,7 @@ from rich.progress import (
   TimeElapsedColumn,
 )
 
-from examui.data.extraction import extract_source
+from uiexam.data.extraction import extract_source
 
 _log = logging.getLogger(__name__)
 
@@ -249,7 +249,7 @@ def compute_all(
   error_count = 0
   total = len(students)
 
-  from examui.pipeline.db import upsert_computed
+  from uiexam.pipeline.db import upsert_computed
 
   progress = Progress(
     SpinnerColumn(),

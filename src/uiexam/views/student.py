@@ -4,11 +4,11 @@
 from datetime import datetime, timedelta
 
 from flask import Blueprint, abort, render_template, request, jsonify, send_from_directory
-from examui import config
-from examui.models import diff as diffmodel
-from examui.models import source
-from examui.models.events import ExamEvent
-from examui.models.store import all_students, UnderEvaluationEvent
+from uiexam import config
+from uiexam.models import diff as diffmodel
+from uiexam.models import source
+from uiexam.models.events import ExamEvent
+from uiexam.models.store import all_students, UnderEvaluationEvent
 
 bp = Blueprint('student', __name__, url_prefix='')
 

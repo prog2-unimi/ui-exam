@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
-from examui.lang.parsing import class_uses, symbols
+from uiexam.lang.parsing import class_uses, symbols
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

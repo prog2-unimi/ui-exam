@@ -5,7 +5,7 @@ import zipfile
 
 import pytest
 
-from examui.data.diff import align_lines, extract_backup_consegna, list_sessions_with_submission
+from uiexam.data.diff import align_lines, extract_backup_consegna, list_sessions_with_submission
 
 
 @pytest.fixture

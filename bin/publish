@@ -39,7 +39,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Starting temporary server on port $PORT..."
-uv run gunicorn --workers=1 --bind="127.0.0.1:$PORT" 'examui:create_app()' \
+uv run gunicorn --workers=1 --bind="127.0.0.1:$PORT" 'uiexam:create_app()' \
   >"$TMPDIR/gunicorn.log" 2>&1 &
 GUNICORN_PID=$!
 disown

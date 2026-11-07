@@ -3,7 +3,7 @@
 
 from flask import Blueprint, abort, render_template
 
-from examui.models.store import load_project_htmls
+from uiexam.models.store import load_project_htmls
 
 bp = Blueprint('teacher', __name__, url_prefix='')
 

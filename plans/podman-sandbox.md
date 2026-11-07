@@ -10,8 +10,8 @@ means `compute` runs those two gradle calls that way, with unchanged results
 
 ## Restart here
 
-Read `src/examui/pipeline/compute.py` (the two `subprocess.run` of `./gradlew`,
-with their timeouts) and `src/examui/data/extraction.py` (`spotlessApply`, which
+Read `src/uiexam/pipeline/compute.py` (the two `subprocess.run` of `./gradlew`,
+with their timeouts) and `src/uiexam/data/extraction.py` (`spotlessApply`, which
 also runs the student's overlaid build on the host). `podman` is at
 `/usr/bin/podman`. Nothing is built yet; the next action is to settle the open
 choices below, one at a time.

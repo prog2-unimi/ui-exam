@@ -14,7 +14,7 @@ jobs:
         with:
           enable-cache: true
       - name: Run tests
-        run: uv run pytest tests/ --cov=src/examui --cov-report=term-missing | tee pytest-coverage.txt
+        run: uv run pytest tests/ --cov=src/uiexam --cov-report=term-missing | tee pytest-coverage.txt
       - name: Format coverage report
         if: always()
         id: coverage

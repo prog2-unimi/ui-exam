@@ -4,4 +4,4 @@
 import os
 from pathlib import Path
 
-os.environ['EXAMUI_CONFIG'] = str(Path(__file__).parent / 'fixture-config.toml')
+os.environ['UIEXAM_CONFIG'] = str(Path(__file__).parent / 'fixture-config.toml')

@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 from flask import Blueprint, jsonify, render_template, request
-from examui import config
-from examui.models.store import all_students, exam_date, marks_mtime, UnderEvaluationEvent
+from uiexam import config
+from uiexam.models.store import all_students, exam_date, marks_mtime, UnderEvaluationEvent
 
 bp = Blueprint('schedule', __name__, url_prefix='')
 

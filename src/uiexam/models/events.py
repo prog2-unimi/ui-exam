@@ -8,7 +8,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-  from examui.models.store import UnderEvaluationEvent
+  from uiexam.models.store import UnderEvaluationEvent
 
 
 @dataclass(frozen=True)

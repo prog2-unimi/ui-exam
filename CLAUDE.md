@@ -1,6 +1,6 @@
 # ui-exam — developer notes
 
-The Python package, imported and run as `examui`, is the app; `ui-exam` is its
+The Python package, imported and run as `uiexam`, is the app; `ui-exam` is its
 name everywhere a person sees one.
 
 ## Purpose
@@ -15,7 +15,7 @@ Runs as a dhevmera host app: @~/.claude/apps.md
 ## Configuration
 
 All stable configuration lives in a TOML file: `config.toml` in the checkout, or
-the one `EXAMUI_CONFIG` names (the unit sets neither `.env` nor that variable).
+the one `UIEXAM_CONFIG` names (the unit sets neither `.env` nor that variable).
 Copy `config.toml.example` to `config.toml` and fill in your values. Values
 under `[paths]` may name environment variables (`${APP_HOME}`), which must be
 set (`ConfigError` otherwise): `APP_HOME` is the app's home, given by the unit
@@ -63,7 +63,7 @@ raise `ConfigError` with a message naming the section, key, and config file path
 (instead of a bare `KeyError`), so misconfiguration fails loudly at import time
 rather than surfacing later as an `AttributeError` deep in a view. This applies
 even to fields used by optional UI features (e.g. `vscode.tunnel`,
-`booking.cal_url`) — every `examui` deployment must fill in the whole file,
+`booking.cal_url`) — every `uiexam` deployment must fill in the whole file,
 including pipeline-only sections (`uploads`, the pipeline-specific `booking`
 keys), regardless of whether the pipeline CLI is actually used.
 
@@ -126,7 +126,7 @@ svm runs the app as a dhevmera host app, `ui-exam.service`, started by hand
 the tailnet at `https://ui-exam.robin-diatonic.ts.net`, a home-screen icon in
 Chrome on the tablet, opened by a session with `dhremote url <address>`. The
 unit runs here
-`.venv/bin/gunicorn -c gunicorn.conf.py --bind 127.0.0.1:8765 examui:create_app()`
+`.venv/bin/gunicorn -c gunicorn.conf.py --bind 127.0.0.1:8765 uiexam:create_app()`
 (the command line overrides `gunicorn.conf.py`'s `bind`); it runs until stopped.
 `dhapp show ui-exam` gives the entry and `~/.claude/apps.md` the contract. Logs
 are the journal (`journalctl --user -u ui-exam`).
@@ -134,7 +134,7 @@ are the journal (`journalctl --user -u ui-exam`).
 The app's home, `APP_HOME` (`/chome/santini/AppsData/ui-exam`, backed up
 nightly), holds `po/` (the work directory) and links `history`, `evals` and
 `backup` to the course's directories; `config.toml` names them through
-`${APP_HOME}`. `bin/giustifica` still reads `EXAMUI_PORT`.
+`${APP_HOME}`. `bin/giustifica` still reads `UIEXAM_PORT`.
 
 Single-worker gunicorn is a hard requirement (in-process `@cache`).
 
@@ -160,7 +160,7 @@ Generates a giustifica HTML file from the command line via `curl`:
 ./bin/giustifica <email-fragment> <titolo> [inizio] [fine]
 ```
 
-Sources `.env` for `EXAMUI_PORT` (default `8765`). Accepts a partial email
+Sources `.env` for `UIEXAM_PORT` (default `8765`). Accepts a partial email
 address — the server resolves it to a unique match; prints matching candidates
 and exits if ambiguous. Saves output as `giustifica-<fragment>.html` in the
 current directory. Uses `--connect-timeout 5` so a missing server fails
@@ -168,7 +168,7 @@ immediately with a clear message.
 
 ### `bin/moss` — submit sources to MOSS for plagiarism detection
 
-Standalone Python script (not part of the `examui` package), shebang
+Standalone Python script (not part of the `uiexam` package), shebang
 `#!/usr/bin/env -S uv run python3` so it always runs with the project's
 dependencies regardless of CWD or shell activation, matching the `uv run`-based
 pattern of the other `bin/` scripts:
@@ -304,7 +304,7 @@ ______________________________________________________________________
 
 Split across three modules:
 
-### `src/examui/models/events.py` — pure frozen data classes (no I/O)
+### `src/uiexam/models/events.py` — pure frozen data classes (no I/O)
 
 #### `Mark`
 
@@ -382,7 +382,7 @@ Additional read-only properties:
 `events` is most-recent-first. Do not use `reversed()` when you want the most
 recent entry.
 
-### `src/examui/models/store.py` — all I/O
+### `src/uiexam/models/store.py` — all I/O
 
 #### `UnderEvaluationMark` — live read/write proxy for one student's marks.tsv row
 
@@ -438,7 +438,7 @@ date. No filesystem check for source presence.
 
 ______________________________________________________________________
 
-## Java language analysis (`src/examui/lang/`)
+## Java language analysis (`src/uiexam/lang/`)
 
 No I/O, no Flask, no config dependency — importable standalone for unit tests.
 
@@ -454,7 +454,7 @@ uv run pytest tests/
 needed with `uv`).
 
 `.github/workflows/tests.yml` runs this same command, plus
-`--cov=src/examui --cov-report=term-missing` (via `pytest-cov`, also in
+`--cov=src/uiexam --cov-report=term-missing` (via `pytest-cov`, also in
 `[dependency-groups] dev`), on every push to `master` and on every pull request,
 using `astral-sh/setup-uv`. The suite is pure Python — no gradle/graphviz/JDK —
 so no extra setup steps are needed in CI. Coverage is reported for reference
@@ -554,7 +554,7 @@ Pure graph algorithms and Java class triviality classification. Public API:
   inter-SCC edges made redundant by transitivity; intra-SCC edges are kept
   as-is.
 
-## Source analysis (`src/examui/models/source.py`)
+## Source analysis (`src/uiexam/models/source.py`)
 
 Filesystem I/O layer for student source code and Javadoc. Orchestrates
 `lang.parsing` and `lang.graph`; applies Pygments highlighting and Graphviz
@@ -716,8 +716,8 @@ ______________________________________________________________________
 
 ## Templates
 
-Templates live at `src/examui/templates/`. Static files live at
-`src/examui/static/`.
+Templates live at `src/uiexam/templates/`. Static files live at
+`src/uiexam/static/`.
 
 **Separation of concerns**: CSS and JavaScript must live in static files (`.css`
 / `.js`), not embedded in templates. The only inline `<script>` block permitted
@@ -1021,7 +1021,7 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-## Data pipeline (`src/examui/pipeline/`)
+## Data pipeline (`src/uiexam/pipeline/`)
 
 Standalone Click CLI (`exam-pipeline`) that replaces the former Snakemake
 pipeline in the `exams/` repo. It downloads student submissions, runs automated
@@ -1030,7 +1030,7 @@ Registered as a `[project.scripts]` entry point in `pyproject.toml`.
 
 ### Design decisions
 
-- **Standalone CLI, not Flask CLI.** The pipeline imports `examui.config` for
+- **Standalone CLI, not Flask CLI.** The pipeline imports `uiexam.config` for
   paths but does NOT create the Flask app — `create_app()` does an expensive
   warmup (reads all XLS, parses all source trees) that the pipeline doesn't
   need.
@@ -1049,7 +1049,7 @@ Registered as a `[project.scripts]` entry point in `pyproject.toml`.
 - **Raw stdout files** stay on the filesystem at
   `STUDENT_BASE/<email>/computed/` so the UI's Details tab can serve them
   without changes. Only structured metrics go into SQLite.
-- **Shared XLS parsing** via `src/examui/data/history.py`. Both `all_students()`
+- **Shared XLS parsing** via `src/uiexam/data/history.py`. Both `all_students()`
   (web app) and `collect` (pipeline) call `read_enrollments()` and
   `read_verbali()` — single source of truth for iscrizioni/verbali parsing.
 - **Only `evals/` content is persistent.** `marks.tsv` and `notes/<email>.md`
@@ -1120,7 +1120,7 @@ collect ────────→ EVALS_DIR/<date>/marks.tsv (preserving mark/
 There is no `pipeline/diff.py` — the student-diff feature is Flask-only (see
 below); it doesn't need a pipeline command.
 
-### Shared data module (`src/examui/data/`)
+### Shared data module (`src/uiexam/data/`)
 
 `data/history.py` — XLS parsing extracted from `models/store.py` so both the web
 app and the pipeline use the same code:
@@ -1196,7 +1196,7 @@ app's student-diff feature:
   syntax-highlighted row data (below). Doesn't know about blank-line filtering,
   Pygments, or HTML — just aligns whatever line sequences it's given.
 
-### Web-side diff model (`src/examui/models/diff.py`)
+### Web-side diff model (`src/uiexam/models/diff.py`)
 
 Where the Flask app's `/api/<email>/diff/*` routes (see `views/student.py`
 above) get their data. The web UI caches each archived session's materialized
@@ -1255,7 +1255,7 @@ everything with `uv run pre-commit run --all-files`.
 
 - Python: ruff, configured in `pyproject.toml`; Markdown: mdformat at 80; YAML:
   yamlfmt; JSON: pretty-format-json; `bin/` shell: shfmt; JS and CSS: Prettier.
-- Not formatted: the Jinja templates in `src/examui/templates/` (Prettier does
+- Not formatted: the Jinja templates in `src/uiexam/templates/` (Prettier does
   not understand `{% %}`), and `static/pygments.css` (rewritten by
   `create_app()` at every startup).
 

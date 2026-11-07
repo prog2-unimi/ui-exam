@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
-from examui.lang.graph import (
+from uiexam.lang.graph import (
   close_trivial,
   is_trivial,
   is_trivial_package,

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026  Massimo Santini
 
-from examui.data.extraction import _strip_leading_comment
+from uiexam.data.extraction import _strip_leading_comment
 
 
 def test_strips_glued_leading_comment_before_package(tmp_path):

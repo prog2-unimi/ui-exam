@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from examui.data.history import enrolled_emails, read_enrollments, read_verbali
-from examui.pipeline import db
+from uiexam.data.history import enrolled_emails, read_enrollments, read_verbali
+from uiexam.pipeline import db
 
 _log = logging.getLogger(__name__)
 

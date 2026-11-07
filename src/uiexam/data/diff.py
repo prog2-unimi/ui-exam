@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 from zipfile import ZipFile
 
-from examui.data.extraction import extract_source
+from uiexam.data.extraction import extract_source
 
 _CONSEGNA_RE = re.compile(r'^(?P<email>[^/@]+)@[^/]+/(?P<attempt>\d+)-consegna\.zip$')
 

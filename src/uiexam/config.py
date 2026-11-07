@@ -24,9 +24,9 @@ def now() -> datetime:
   return datetime.now()
 
 
-# the config file: EXAMUI_CONFIG if set, else config.toml in the checkout
+# the config file: UIEXAM_CONFIG if set, else config.toml in the checkout
 
-_config_path = environ.get('EXAMUI_CONFIG') or str(
+_config_path = environ.get('UIEXAM_CONFIG') or str(
   Path(__file__).resolve().parents[2] / 'config.toml'
 )
 

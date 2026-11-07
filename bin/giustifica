@@ -7,8 +7,8 @@ set -e
 BINDIR="$(dirname "$(realpath "$0")")"
 source "$BINDIR/../.env"
 
-: "${EXAMUI_PORT:=8765}"
-BASE="http://localhost:${EXAMUI_PORT}"
+: "${UIEXAM_PORT:=8765}"
+BASE="http://localhost:${UIEXAM_PORT}"
 
 usage() {
   cat >&2 <<EOF

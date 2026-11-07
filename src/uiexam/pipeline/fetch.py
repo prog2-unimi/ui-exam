@@ -13,7 +13,7 @@ from zipfile import ZipFile
 import requests
 from rapidfuzz import process
 
-from examui.pipeline import db
+from uiexam.pipeline import db
 
 _log = logging.getLogger(__name__)
 

@@ -21,12 +21,12 @@ def create_app():
   _configure_logging()
   app = Flask(__name__)
 
-  from examui.views.student import bp as student_bp
-  from examui.views.history import bp as history_bp
-  from examui.views.schedule import bp as schedule_bp
-  from examui.views.teacher import bp as teacher_bp
-  from examui.models.store import load_project_htmls
-  from examui import config as _config
+  from uiexam.views.student import bp as student_bp
+  from uiexam.views.history import bp as history_bp
+  from uiexam.views.schedule import bp as schedule_bp
+  from uiexam.views.teacher import bp as teacher_bp
+  from uiexam.models.store import load_project_htmls
+  from uiexam import config as _config
 
   app.register_blueprint(student_bp)
   app.register_blueprint(history_bp)
@@ -49,8 +49,8 @@ def create_app():
     )
 
   from pathlib import Path
-  from examui.models.store import all_students, UnderEvaluationEvent
-  from examui.models import source
+  from uiexam.models.store import all_students, UnderEvaluationEvent
+  from uiexam.models import source
 
   Path(app.static_folder, 'pygments.css').write_text(source.pygments_css())
   students = all_students()

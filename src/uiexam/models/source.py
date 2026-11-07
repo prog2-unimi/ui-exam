@@ -13,9 +13,9 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JavaLexer
 
-from examui import config
-from examui.lang import graph as _graph
-from examui.lang import parsing
+from uiexam import config
+from uiexam.lang import graph as _graph
+from uiexam.lang import parsing
 
 _log = logging.getLogger(__name__)
 
